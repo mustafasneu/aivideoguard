@@ -20,6 +20,7 @@ import { bestMatch, dot } from '../shared/vector.js';
 import { configHash, embedHash, channelBoost } from '../shared/scoring.js';
 import { embed, getAnchors } from './embedder.js';
 import { judgeText, judgeVision, fetchThumbnail } from './llm.js';
+import { isAllowedThumbnail } from '../shared/thumbnail.js';
 import {
   getVerdict,
   putVerdict as _putVerdict,
@@ -59,7 +60,13 @@ export async function evaluate(item, settings, opts = {}) {
   /* --- 0. Onbellek ------------------------------------------------ */
   const cached = dry ? null : await getVerdict(item.videoId, hash);
   if (cached) {
-    return result(cached.v, LAYER.CACHE, { score: cached.s, cachedFrom: cached.l });
+    // Gerekce de onbellekten geri verilir; aksi halde ikinci goruntulemede
+    // kart "Gizlendi" der ama nedenini soyleyemezdi.
+    return result(cached.v, LAYER.CACHE, {
+      score: cached.s,
+      cachedFrom: cached.l,
+      reason: cached.r,
+    });
   }
 
   const channelKey = normalize(item.channel);
@@ -76,7 +83,7 @@ export async function evaluate(item, settings, opts = {}) {
 
   const blockHit = channelMatches(item.channel, parseList(settings.channelBlock));
   if (blockHit) {
-    await putVerdict(item.videoId, hash, VERDICT.BLOCK, 1, LAYER.CHANNEL_BLOCK);
+    await putVerdict(item.videoId, hash, VERDICT.BLOCK, 1, LAYER.CHANNEL_BLOCK, `kanal: ${blockHit}`);
     await bumpStats({ blocked: 1 });
     return result(VERDICT.BLOCK, LAYER.CHANNEL_BLOCK, { matched: blockHit });
   }
@@ -84,7 +91,7 @@ export async function evaluate(item, settings, opts = {}) {
   /* --- 3. Literal kisayol ----------------------------------------- */
   const literalHit = literalMatches(text, parseList(settings.hardBlock));
   if (literalHit) {
-    await putVerdict(item.videoId, hash, VERDICT.BLOCK, 1, LAYER.LITERAL);
+    await putVerdict(item.videoId, hash, VERDICT.BLOCK, 1, LAYER.LITERAL, `kural: ${literalHit}`);
     await recordChannelOutcome(channelKey, true);
     await bumpStats({ blocked: 1 });
     return result(VERDICT.BLOCK, LAYER.LITERAL, { matched: literalHit });
@@ -109,7 +116,7 @@ export async function evaluate(item, settings, opts = {}) {
       matchedAnchor = sAnchor >= sTopic ? anchor?.text : '(konu)';
 
       if (semanticScore >= settings.tBlock) {
-        await putVerdict(item.videoId, hash, VERDICT.BLOCK, semanticScore, LAYER.SEMANTIC);
+        await putVerdict(item.videoId, hash, VERDICT.BLOCK, semanticScore, LAYER.SEMANTIC, matchedAnchor);
         await recordChannelOutcome(channelKey, true);
         await bumpStats({ blocked: 1 });
         return result(VERDICT.BLOCK, LAYER.SEMANTIC, {
@@ -140,12 +147,12 @@ export async function evaluate(item, settings, opts = {}) {
   };
 
   let textVerdict = null;
-  if (settings.useTextLlm) {
+  if (settings.useTextLlm && hasSemanticCriteria) {
     textVerdict = await judgeText(ctx, settings);
     const decisive = textVerdict.confidence >= settings.visionEscalateBelow;
     if (decisive) {
       const v = textVerdict.related ? VERDICT.BLOCK : VERDICT.ALLOW;
-      await putVerdict(item.videoId, hash, v, semanticScore, LAYER.TEXT_LLM);
+      await putVerdict(item.videoId, hash, v, semanticScore, LAYER.TEXT_LLM, textVerdict.reason);
       await recordChannelOutcome(channelKey, textVerdict.related);
       await bumpStats(textVerdict.related ? { blocked: 1 } : { allowed: 1 });
       return result(v, LAYER.TEXT_LLM, {
@@ -157,15 +164,17 @@ export async function evaluate(item, settings, opts = {}) {
   /* --- 6. Baglamsal gorsel katmani -------------------------------- */
   const canUseVision =
     settings.useVisionLlm &&
+    hasSemanticCriteria &&
     settings.allowThumbnailUpload &&
     item.thumbnail &&
-    /^https?:/.test(item.thumbnail);
+    // Alan adi burada da elenir: gecersiz adres icin bosuna cagri kurulmasin
+    isAllowedThumbnail(item.thumbnail);
 
   if (canUseVision) {
     const { base64, mimeType } = await fetchThumbnail(item.thumbnail);
     const vv = await judgeVision(ctx, base64, mimeType, settings);
     const v = vv.related ? VERDICT.BLOCK : VERDICT.ALLOW;
-    await putVerdict(item.videoId, hash, v, semanticScore, LAYER.VISION_LLM);
+    await putVerdict(item.videoId, hash, v, semanticScore, LAYER.VISION_LLM, vv.reason);
     await recordChannelOutcome(channelKey, vv.related);
     await bumpStats(vv.related ? { blocked: 1 } : { allowed: 1 });
     return result(v, LAYER.VISION_LLM, {
@@ -176,7 +185,7 @@ export async function evaluate(item, settings, opts = {}) {
   /* --- Gorsel katman yoksa metin katmaninin kararsiz sonucu ------- */
   if (textVerdict) {
     const v = textVerdict.related ? VERDICT.BLOCK : VERDICT.ALLOW;
-    await putVerdict(item.videoId, hash, v, semanticScore, LAYER.TEXT_LLM);
+    await putVerdict(item.videoId, hash, v, semanticScore, LAYER.TEXT_LLM, textVerdict.reason);
     await recordChannelOutcome(channelKey, textVerdict.related);
     await bumpStats(textVerdict.related ? { blocked: 1 } : { allowed: 1 });
     return result(v, LAYER.TEXT_LLM, {

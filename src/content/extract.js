@@ -7,6 +7,8 @@
  * yeniden okunur ve degistiyse eski karar temizlenir.
  */
 
+import { isAllowedThumbnail } from '../shared/thumbnail.js';
+
 export const CARD_SELECTOR = [
   'ytd-rich-item-renderer',
   'ytd-video-renderer',
@@ -29,9 +31,6 @@ function firstText(root, selectors) {
   return '';
 }
 
-/** Video kucuk resmi sunulan alan adlari. Avatar alan adlari (ggpht) DISARIDA. */
-const THUMB_HOST = /(^|\.)(ytimg\.com|img\.youtube\.com)$/;
-
 const THUMB_CONTAINER = [
   'ytd-thumbnail img',
   'ytd-playlist-video-thumbnail-renderer img',
@@ -40,27 +39,18 @@ const THUMB_CONTAINER = [
   'yt-image img',
 ].join(',');
 
-function isThumbUrl(src) {
-  if (!/^https:/.test(src)) return false;
-  try {
-    return THUMB_HOST.test(new URL(src).hostname);
-  } catch {
-    return false;
-  }
-}
-
 export function pickThumbnail(card) {
   // 1) Once thumbnail konteynerinin icindekiler — avatar buraya giremez
   for (const img of card.querySelectorAll(THUMB_CONTAINER)) {
     const src = img.currentSrc || img.src || '';
-    if (isThumbUrl(src)) return src;
+    if (isAllowedThumbnail(src)) return src;
   }
   // 2) Konteyner secicileri tutmadiysa (YouTube DOM'u degistiyse) tum
   //    goruntulere bak ama alan adiyla ele — boyuta GUVENME, cunku
   //    yuklenmemis kucuk resmin alani 0, onbellekli avatarinki > 0'dir.
   for (const img of card.querySelectorAll('img')) {
     const src = img.currentSrc || img.src || '';
-    if (isThumbUrl(src)) return src;
+    if (isAllowedThumbnail(src)) return src;
   }
   return '';
 }

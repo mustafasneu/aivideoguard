@@ -258,11 +258,29 @@ async function main() {
   await banner(yt, 'ADIM 5 — Önbellek', 'Sayfa yenileniyor. Kararlar önbellekten gelmeli, yeni API çağrısı olmamalı.');
   await yt.reload({ waitUntil: 'domcontentloaded' });
   await yt.waitForTimeout(2500);
-  let cacheOk = true;
+  // Onbellekten gelen kararlar gerekcesini korumali. Aksi halde ikinci
+  // goruntulemede kart "Gizlendi" der ama nedenini soyleyemez.
+  await yt.waitForFunction(
+    () => document.querySelectorAll('[data-aivg="pending"]').length === 0,
+    null,
+    { timeout: 20000 },
+  ).catch(() => {});
+  const cachedLabels = await yt.evaluate(() =>
+    [...document.querySelectorAll('[data-aivg="blocked"]')].map((c) => ({
+      layer: c.getAttribute('data-aivg-layer'),
+      label: c.getAttribute('data-aivg-label') || '',
+    })),
+  );
+  const reasonless = cachedLabels.filter((c) => c.label.split('\n').length < 2);
+  log(`      onbellekten gelen ${cachedLabels.length} karttan ` +
+      `${cachedLabels.length - reasonless.length} tanesi gerekcesini koruyor ` +
+      (reasonless.length === 0 ? '\x1b[32m(tamam)\x1b[0m' : '\x1b[31m(eksik)\x1b[0m'));
+
+  let cacheOk = reasonless.length === 0;
   if (mock) {
     const newEmbeds = mock.counters.embed - before.embed;
     const newLlm = mock.counters.text + mock.counters.vision - before.text - before.vision;
-    cacheOk = newEmbeds + newLlm === 0;
+    cacheOk = cacheOk && newEmbeds + newLlm === 0;
     log(`      yenileme sonrasi ek cagri: ${newEmbeds} gomu, ${newLlm} LLM ` +
         (cacheOk ? '\x1b[32m(onbellek calisiyor)\x1b[0m' : '\x1b[33m(onbellek atlanmis)\x1b[0m'));
   }
@@ -282,7 +300,10 @@ async function main() {
   await rm(profile, { recursive: true, force: true });
 
   const failed = VIDEOS.length - pass;
-  if (!cacheOk) log('\n\x1b[33muyari: onbellek yenileme sonrasi devreye girmedi\x1b[0m');
+  if (!cacheOk) {
+    log('\n\x1b[31monbellek dogrulamasi basarisiz\x1b[0m');
+    process.exitCode = 1;
+  }
   if (failed > 0) {
     log(`\n\x1b[31m${failed} kart beklenenden farkli davrandi.\x1b[0m\n`);
     process.exit(1);

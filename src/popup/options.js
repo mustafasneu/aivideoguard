@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 import { getSettings, setSettings } from '../shared/storage.js';
 import { DEFAULTS, MODELS, LAYER, VERDICT } from '../shared/config.js';
+import { hasRequiredOrigins, requestRequiredOrigins } from '../shared/permissions.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,6 +41,7 @@ async function load() {
 
   syncOutputs();
   $('keyWarning').hidden = !!s.apiKey;
+  $('permWarning').hidden = await hasRequiredOrigins();
   await refreshStats();
 }
 
@@ -152,10 +154,9 @@ async function probe() {
     item: { title, channel: $('probeChannel').value.trim(), thumbnail: '' },
   });
 
-  const rows = [
-    ['Karar', `<span class="verdict-${res.verdict}">${res.verdict === VERDICT.BLOCK ? 'ENGELLE' : 'GECIR'}</span>`],
-    ['Karari veren', LAYER_LABEL[res.layer] || res.layer],
-  ];
+  const isBlock = res.verdict === VERDICT.BLOCK;
+  const rows = [['Karar', isBlock ? 'ENGELLE' : 'GECIR', `verdict-${res.verdict}`]];
+  rows.push(['Karari veren', LAYER_LABEL[res.layer] || res.layer]);
   if (res.score != null) rows.push(['Anlamsal skor', res.score.toFixed(4)]);
   if (res.boost) rows.push(['Kanal hafizasi katkisi', `+${res.boost.toFixed(4)}`]);
   if (res.matched) rows.push(['En yakin capa', res.matched]);
@@ -163,20 +164,46 @@ async function probe() {
   if (res.reason) rows.push(['Gerekce', res.reason]);
   if (res.error) rows.push(['Hata', res.error]);
 
-  out.innerHTML = `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  // innerHTML KULLANILMAZ: `reason` model ciktisi, `error` ise sunucu hata
+  // metnidir. Ikisi de bizim denetimimiz disinda; sablona gomulurse
+  // ayarlar sayfasina isaretleme enjekte edilebilir.
+  const dl = document.createElement('dl');
+  for (const [k, v, cls] of rows) {
+    const dt = document.createElement('dt');
+    dt.textContent = k;
+    const dd = document.createElement('dd');
+    dd.textContent = v;
+    if (cls) dd.className = cls;
+    dl.append(dt, dd);
+  }
+  out.replaceChildren(dl);
 }
 
 /* ------------------------------------------------------------------ */
 
+function statTiles(host, rows) {
+  host.replaceChildren(
+    ...rows.map(([label, v]) => {
+      const div = document.createElement('div');
+      const b = document.createElement('b');
+      b.textContent = String(v);
+      const span = document.createElement('span');
+      span.textContent = label;
+      div.append(b, span);
+      return div;
+    }),
+  );
+}
+
 async function refreshStats() {
   const s = await browser.runtime.sendMessage({ type: 'getStats' });
-  $('stats').innerHTML = [
+  statTiles($('stats'), [
     ['Bugun engellenen', s.blocked || 0],
     ['Bugun gecen', s.allowed || 0],
-    ['LLM cagrisi', `${s.llmCalls || 0}`],
+    ['LLM cagrisi', s.llmCalls || 0],
     ['Hata', s.errors || 0],
     ['Toplam engellenen', s.totalBlocked || 0],
-  ].map(([label, v]) => `<div><b>${v}</b><span>${label}</span></div>`).join('');
+  ]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -187,6 +214,15 @@ document.addEventListener('input', (e) => {
 });
 document.addEventListener('change', (e) => {
   if (e.target.closest('.card')) save();
+});
+
+// Izin istegi tiklamadan DOGRUDAN yapilir — araya await girerse
+// tarayici kullanici hareketi baglamini kaybeder ve istegi reddeder.
+$('grantPerms').addEventListener('click', () => {
+  requestRequiredOrigins().then((granted) => {
+    $('permWarning').hidden = granted;
+    flash($('saveStatus'), granted ? 'Izinler verildi' : 'Izinler verilmedi', !granted);
+  });
 });
 
 $('verifyKey').addEventListener('click', verifyKey);

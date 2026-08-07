@@ -41,10 +41,22 @@ export async function getVerdict(videoId, hash) {
   return e;
 }
 
-export async function putVerdict(videoId, hash, verdict, score, layer) {
+/**
+ * @param {string} [reason] Karari aciklayan kisa metin (LLM gerekcesi veya
+ *   eslesen capa/kural). Onbellege YAZILMASI sart: aksi halde ikinci
+ *   goruntulemede kart "Gizlendi" der ama nedenini soyleyemez.
+ */
+export async function putVerdict(videoId, hash, verdict, score, layer, reason) {
   if (!videoId) return;
   const all = await loadVerdicts();
-  all[videoId] = { h: hash, v: verdict, s: score, l: layer, ts: Date.now() };
+  all[videoId] = {
+    h: hash,
+    v: verdict,
+    s: score,
+    l: layer,
+    ts: Date.now(),
+    ...(reason ? { r: String(reason).slice(0, 120) } : {}),
+  };
 
   const keys = Object.keys(all);
   if (keys.length > VERDICT_MAX) {

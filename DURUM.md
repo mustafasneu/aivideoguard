@@ -31,9 +31,11 @@ Kullanıcının yazdığı liste maddeleri de anlamsal çapa olarak gömülür. 
 | | |
 |---|---|
 | Derleme | `dist/firefox` + `dist/chrome` (+ `dist/chrome-test`) |
-| Birim test | 25/25 geçiyor — `npm test` |
-| Uçtan uca | 9/9 geçiyor — `node test/e2e/demo.mjs` |
+| Birim test | 35/35 geçiyor — `npm test` |
+| Uçtan uca | 9/9 kart + önbellek gerekçesi 5/5 — `node test/e2e/demo.mjs` |
 | Gömülü sır | yok, doğrulandı |
+
+İncelemede onaylanan **14 bulgunun tamamı uygulandı.**
 
 ## Komutlar
 
@@ -83,11 +85,11 @@ Onaylananlar ve uygulama durumu aşağıda.
 11. **[medium]** Çapa bağlamlandırması tüm çapaları konu vektörüne çekip ayırt ediciliği yok ediyordu — çapa başına ayrı anlam merkezi tutmanın amacı kayboluyordu. Konu enjeksiyonu kaldırıldı, yerine nötr `"<metin> konulu video"` şablonu.
 12. **[medium]** Konu/çapa yokken metin LLM'i her video için "(belirtilmemiş)" konusuyla çağrılıyordu. `hasSemanticCriteria` kapısı eklendi.
 
-### Sırada — henüz uygulanmadı
+13. **[medium]** Firefox MV3'te host izinleri kurulumda verilmiyordu; verilmediğinde fetch çağrıları sessizce düşüyor ve kullanıcı filtrenin neden çalışmadığını göremiyordu. `shared/permissions.js` eklendi; ayarlar sayfası `permissions.contains` ile kontrol ediyor, eksikse banner + kullanıcı tıklamasıyla `permissions.request`. İstek tıklamadan **doğrudan** yapılıyor — araya `await` girerse tarayıcı kullanıcı hareketi bağlamını kaybedip reddediyor.
+14. **[low]** Ayarlar sayfasında model çıktısı ve API hata metni `innerHTML`'e kaçışsız yazılıyordu. `probe()`, `refreshStats()` ve popup istatistikleri `textContent` + `replaceChildren` ile DOM kurulumuna çevrildi.
+15. **[görsel QC]** Önbellekten gelen kararlar gerekçeyi saklamıyordu. `putVerdict` artık `reason` alıyor, `LAYER.CACHE` dönüşünde geri veriyor; hata ayıklama etiketi `[cache←semantic 0.812]` biçiminde asıl katmanı da gösteriyor.
 
-13. **[medium]** Firefox MV3'te host izinleri kurulumda verilmiyor; çalışma zamanı `permissions.request` akışı yok. Yapılacak: `gecko.strict_min_version`'ı 127.0'a çek + ayarlar sayfasında `permissions.contains` kontrolü ve kullanıcı tıklamasıyla istek.
-14. **[low]** Ayarlar sayfasında model çıktısı ve API hata metni `innerHTML`'e kaçışsız yazılıyor (`options.js` `probe()` ve `populate()`). Yapılacak: `textContent` + `replaceChildren`.
-15. **[görsel QC]** Önbellekten gelen kararlar gerekçeyi saklamıyor; kart etiketinde "Gizlendi [cache 1.000]" görünüyor, neden gizlendiği kayboluyor. Yapılacak: `putVerdict`'e `reason`/`matched` alanlarını ekle, `LAYER.CACHE` dönüşünde geri ver.
+Ayrıca kod tekrarı giderildi: küçük resim alan adı doğrulaması `extract.js` ve `llm.js` içinde iki kez duruyordu, `shared/thumbnail.js` altında tek modüle indirildi ve test edildi.
 
 ### Ayrıca gözden geçirilmeli
 

@@ -30,8 +30,11 @@ function markBlocked(card, res) {
   if (res.reason) label += `\n${res.reason}`;
   else if (res.matched) label += `\n${res.matched}`;
   if (res.error) label = `Filtre hatasi — gizlendi\n${res.error.slice(0, 60)}`;
-  if (settings?.debug && res.score != null) {
-    label += `\n[${res.layer} ${res.score.toFixed(3)}]`;
+  if (settings?.debug) {
+    // Onbellekten gelen kararda asil katmani da goster: "cache←semantic"
+    const origin = res.cachedFrom ? `${res.layer}←${res.cachedFrom}` : res.layer;
+    const score = res.score != null ? ` ${res.score.toFixed(3)}` : '';
+    label += `\n[${origin}${score}]`;
   }
   card.setAttribute('data-aivg', 'blocked');
   card.setAttribute('data-aivg-label', label);

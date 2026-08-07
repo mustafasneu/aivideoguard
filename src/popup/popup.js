@@ -25,11 +25,21 @@ async function init() {
   $('keyWarning').hidden = !!s.apiKey;
 
   const st = await browser.runtime.sendMessage({ type: 'getStats' });
-  $('stats').innerHTML = [
-    ['Bugun engellenen', st.blocked || 0],
-    ['LLM cagrisi', st.llmCalls || 0],
-    ['Hata', st.errors || 0],
-  ].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+  $('stats').replaceChildren(
+    ...[
+      ['Bugun engellenen', st.blocked || 0],
+      ['LLM cagrisi', st.llmCalls || 0],
+      ['Hata', st.errors || 0],
+    ].map(([l, v]) => {
+      const div = document.createElement('div');
+      const b = document.createElement('b');
+      b.textContent = String(v);
+      const span = document.createElement('span');
+      span.textContent = l;
+      div.append(b, span);
+      return div;
+    }),
+  );
 }
 
 $('enabled').addEventListener('change', save);

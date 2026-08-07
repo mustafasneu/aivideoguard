@@ -13,6 +13,7 @@ import { MODELS } from '../shared/config.js';
 import { callGemini } from './net.js';
 import { reserveLlmCall, releaseLlmCall } from './cache.js';
 import { BudgetError } from './net.js';
+import { isAllowedThumbnail } from '../shared/thumbnail.js';
 
 const VERDICT_SCHEMA = {
   type: 'OBJECT',
@@ -163,26 +164,6 @@ export async function judgeVision(ctx, imageBase64, mimeType, settings) {
   } catch (err) {
     await releaseLlmCall();
     throw err;
-  }
-}
-
-/** Yalnizca bu alan adlarindan goruntu cekilir. */
-const THUMB_HOST = /(^|\.)(ytimg\.com|img\.youtube\.com)$/;
-
-/**
- * Kucuk resim adresi guvenli mi?
- *
- * URL sayfadan gelir; sayfa baglami kotu niyetli olabilir (youtube.com'da bir
- * XSS, baska bir uzanti, ya da YouTube'un kendi degisen DOM'u). Dogrulama
- * olmadan arka plan, sayfanin secttigi herhangi bir adrese uzanti
- * yetkileriyle istek atardi.
- */
-export function isAllowedThumbnail(url) {
-  try {
-    const u = new URL(url);
-    return u.protocol === 'https:' && THUMB_HOST.test(u.hostname);
-  } catch {
-    return false;
   }
 }
 
