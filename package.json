@@ -1,0 +1,22 @@
+{
+  "name": "ai-video-guard",
+  "version": "1.0.0",
+  "description": "Anlamsal YouTube icerik filtresi (Firefox + Chrome)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:firefox": "node scripts/build.mjs --target=firefox",
+    "build:chrome": "node scripts/build.mjs --target=chrome",
+    "watch": "node scripts/build.mjs --watch",
+    "test": "node --test test/",
+    "zip": "node scripts/build.mjs && cd dist/firefox && zip -qr ../ai-video-guard-firefox.zip . && cd ../chrome && zip -qr ../ai-video-guard-chrome.zip ."
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "playwright": "^1.49.1"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  }
+}

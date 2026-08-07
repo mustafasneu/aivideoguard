@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Video Guard — Ayarlar</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main class="wrap">
+
+  <header class="head">
+    <div>
+      <h1>AI Video Guard</h1>
+      <p class="sub">Anlamsal ve baglamsal YouTube icerik filtresi</p>
+    </div>
+    <label class="master">
+      <input type="checkbox" id="enabled">
+      <span>Etkin</span>
+    </label>
+  </header>
+
+  <div id="keyWarning" class="banner warn" hidden>
+    API anahtari tanimli degil. Anlamsal ve baglamsal katmanlar calismaz;
+    yalnizca literal ve kanal listeleri devrede kalir.
+  </div>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>Ne filtrelensin</h2>
+
+    <label class="field">
+      <span class="lbl">Kacinmak istediginiz konu</span>
+      <span class="hint">Dogal dille yazin. Kelime listesi degil — sistem anlami kavrar.
+        Ornek: "X partisinin siyasetcileri ve onlarla ilgili tartisma programlari".</span>
+      <textarea id="topic" rows="3" placeholder="Gormek istemediginiz konuyu birkac cumleyle anlatin..."></textarea>
+    </label>
+
+    <label class="field">
+      <span class="lbl">Anlam capalari <em>(her satira bir tane)</em></span>
+      <span class="hint">Her satir bir anlam merkezidir, kelime eslesmesi DEGIL.
+        "spoiler" yazdiginizda icinde o kelime gecmeyen ama spoiler iceren basliklar da yakalanir.</span>
+      <textarea id="anchors" rows="4" placeholder="secim tartismasi&#10;dizi spoiler&#10;..."></textarea>
+    </label>
+
+    <details class="adv">
+      <summary>Kesin kurallar (istege bagli)</summary>
+
+      <label class="field">
+        <span class="lbl">Kesin engelle — birebir metin</span>
+        <span class="hint">Bu ifadeler basliktan/kanaldan gectiginde hicbir katmana sorulmadan engellenir.
+          Turkce buyuk-kucuk harf ve aksan farki gozetilmez.</span>
+        <textarea id="hardBlock" rows="2" placeholder="ifade1, ifade2"></textarea>
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span class="lbl">Engelli kanallar</span>
+          <textarea id="channelBlock" rows="3" placeholder="Kanal adi..."></textarea>
+        </label>
+        <label class="field">
+          <span class="lbl">Guvenli kanallar</span>
+          <span class="hint">Hicbir katman calismaz.</span>
+          <textarea id="channelAllow" rows="3" placeholder="Kanal adi..."></textarea>
+        </label>
+      </div>
+    </details>
+  </section>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>Katmanlar</h2>
+    <p class="hint">Her katman bir sonrakine yalnizca gerektiginde devreder.
+      Ustteki katmanlar ucuz, alttakiler pahali.</p>
+
+    <ul class="layers">
+      <li>
+        <label><input type="checkbox" id="useSemantic"> <b>Anlamsal</b></label>
+        <span>Baslik ve kanal metninin konuya anlam yakinligi. Toplu gomu, cok ucuz.</span>
+      </li>
+      <li>
+        <label><input type="checkbox" id="useTextLlm"> <b>Baglamsal — metin</b></label>
+        <span>Dolayli iliskiyi kurar: takma ad, kisinin rolu, olayin taraflari, ima.</span>
+      </li>
+      <li>
+        <label><input type="checkbox" id="useVisionLlm"> <b>Baglamsal — gorsel</b></label>
+        <span>Yalnizca metin katmani kararsiz kaldiginda kucuk resme bakar.</span>
+      </li>
+      <li>
+        <label><input type="checkbox" id="useChannelMemory"> <b>Kanal hafizasi</b></label>
+        <span>Bir kanalin gecmis kararlari baglamsal delil olur. Tek basina engelleme yetkisi yoktur.</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>Esikler</h2>
+    <div class="banner info">
+      Bu degerler kalibre edilmemis baslangic noktalaridir. Asagidaki kalibrasyon
+      kutusuyla kendi konunuzda gercek skorlari olcup ayarlayin.
+    </div>
+
+    <label class="slider">
+      <span class="lbl">Dogrudan engelleme esigi — <output id="tBlockOut"></output></span>
+      <span class="hint">Bu skorun ustunde LLM'e hic sorulmaz, dogrudan engellenir.</span>
+      <input type="range" id="tBlock" min="0.3" max="0.95" step="0.01">
+    </label>
+
+    <label class="slider">
+      <span class="lbl">Sorma esigi — <output id="tAskOut"></output></span>
+      <span class="hint">Bu skorun altinda LLM'e hic sorulmaz, dogrudan gecirilir.
+        Iki esik arasi bant LLM'e gider — bant genisledikce maliyet artar.</span>
+      <input type="range" id="tAsk" min="0.1" max="0.8" step="0.01">
+    </label>
+
+    <label class="slider">
+      <span class="lbl">Gorsele yukseltme esigi — <output id="visionOut"></output></span>
+      <span class="hint">Metin katmaninin guveni bunun altindaysa kucuk resme bakilir.</span>
+      <input type="range" id="visionEscalateBelow" min="0.4" max="1" step="0.01">
+    </label>
+  </section>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>Kalibrasyon</h2>
+    <p class="hint">Gercek bir baslik yazin, hangi katmanin ne karar verdigini gorun.
+      Bu deneme onbellege ve istatistige yazilmaz.</p>
+    <div class="row">
+      <label class="field"><span class="lbl">Baslik</span>
+        <input type="text" id="probeTitle" placeholder="Video basligi"></label>
+      <label class="field"><span class="lbl">Kanal</span>
+        <input type="text" id="probeChannel" placeholder="Kanal adi"></label>
+    </div>
+    <button id="probeBtn" class="btn secondary">Degerlendir</button>
+    <div id="probeOut" class="probe" hidden></div>
+  </section>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>API ve maliyet</h2>
+
+    <label class="field">
+      <span class="lbl">Gemini API anahtari</span>
+      <span class="hint">Yalnizca bu tarayicida saklanir, hicbir yere gonderilmez.
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Anahtar alin</a>.</span>
+      <div class="inline">
+        <input type="password" id="apiKey" autocomplete="off" placeholder="AIza...">
+        <button id="toggleKey" class="btn ghost" type="button">Goster</button>
+        <button id="verifyKey" class="btn secondary" type="button">Dogrula</button>
+      </div>
+      <span id="keyStatus" class="status"></span>
+    </label>
+
+    <div class="row">
+      <label class="field"><span class="lbl">Gomu modeli</span>
+        <select id="modelEmbedding"></select></label>
+      <label class="field"><span class="lbl">Metin modeli</span>
+        <select id="modelText"></select></label>
+      <label class="field"><span class="lbl">Gorsel modeli</span>
+        <select id="modelVision"></select></label>
+    </div>
+
+    <details class="adv">
+      <summary>Uc nokta (kurumsal gateway / proxy)</summary>
+      <label class="field">
+        <span class="lbl">API adresi</span>
+        <span class="hint">Bos birakilirsa Google'in resmi adresi kullanilir.
+          Yalnizca kendi gateway'inizden gecmeniz gerekiyorsa doldurun.</span>
+        <input type="text" id="apiEndpoint" placeholder="https://generativelanguage.googleapis.com/v1beta">
+      </label>
+    </details>
+
+    <div class="row">
+      <label class="field"><span class="lbl">Dakikada en fazla istek</span>
+        <input type="number" id="maxRequestsPerMinute" min="1" max="600"></label>
+      <label class="field"><span class="lbl">Gunluk LLM butcesi</span>
+        <span class="hint">Asilinca hata politikasi devreye girer.</span>
+        <input type="number" id="dailyLlmBudget" min="0" max="100000"></label>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>Davranis ve gizlilik</h2>
+
+    <label class="field">
+      <span class="lbl">Hata / kota / ag sorununda</span>
+      <select id="onError">
+        <option value="show">Icerigi goster (varsayilan)</option>
+        <option value="hide">Icerigi gizle</option>
+      </select>
+      <span class="hint">Gizle secildiginde engellenen kartlar kesikli cerceveyle gosterilir,
+        boylece gercek filtre karari ile hata ayirt edilir.</span>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" id="allowThumbnailUpload">
+      <span><b>Kucuk resimler Google'a gonderilebilsin</b>
+        <em>Kapatilirsa gorsel katman tamamen devre disi kalir.
+          Basliklar ve kanal adlari, gomu icin yine gonderilir.</em></span>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" id="debug">
+      <span><b>Hata ayiklama</b><em>Engellenen kartta katman ve skor gosterilir.</em></span>
+    </label>
+  </section>
+
+  <!-- ---------------------------------------------------------- -->
+  <section class="card">
+    <h2>Durum</h2>
+    <div class="stats" id="stats"></div>
+    <button id="clearCache" class="btn ghost">Onbellegi ve kanal hafizasini sil</button>
+  </section>
+
+  <footer class="foot">
+    <span id="saveStatus" class="status"></span>
+  </footer>
+</main>
+<script src="options.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>AI Video Guard</title>
+  <link rel="stylesheet" href="options.css">
+  <style>
+    body { width: 320px; }
+    .wrap { padding: 16px; }
+    .card { margin-bottom: 12px; padding: 14px; }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <div><h1>AI Video Guard</h1></div>
+    <label class="master"><input type="checkbox" id="enabled"><span>Etkin</span></label>
+  </header>
+
+  <div id="keyWarning" class="banner warn" hidden>API anahtari yok — ayarlardan ekleyin.</div>
+
+  <section class="card">
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="card">
+    <label class="field">
+      <span class="lbl">Kacinilan konu</span>
+      <textarea id="topic" rows="3" placeholder="Gormek istemediginiz konu..."></textarea>
+    </label>
+    <span id="saveStatus" class="status"></span>
+  </section>
+
+  <button id="openOptions" class="btn secondary" style="width:100%">Tum ayarlar</button>
+</main>
+<script src="popup.js" type="module"></script>
+</body>
+</html>
