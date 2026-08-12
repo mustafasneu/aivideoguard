@@ -10,7 +10,7 @@
     "build:chrome": "node scripts/build.mjs --target=chrome",
     "watch": "node scripts/build.mjs --watch",
     "test": "node --test test/",
-    "zip": "node scripts/build.mjs && cd dist/firefox && zip -qr ../ai-video-guard-firefox.zip . && cd ../chrome && zip -qr ../ai-video-guard-chrome.zip ."
+    "zip": "node scripts/build.mjs && node scripts/zip.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",

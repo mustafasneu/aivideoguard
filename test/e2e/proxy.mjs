@@ -26,18 +26,37 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fixtureHtml, TINY_JPEG } from './fixture.js';
 
-/** Test icin tek kullanimlik kendinden imzali sertifika. */
+/**
+ * Test icin tek kullanimlik kendinden imzali sertifika.
+ *
+ * `openssl` her platformda bulunmaz (Windows'ta varsayilan olarak yoktur).
+ * Bulunamazsa acik bir mesajla durulur — Node yiginini kusmak, sorunun
+ * eksik bir arac oldugunu gizlerdi.
+ */
 function makeCert() {
   const dir = mkdtempSync(join(tmpdir(), 'aivg-cert-'));
   const key = join(dir, 'key.pem');
   const cert = join(dir, 'cert.pem');
-  execFileSync('openssl', [
-    'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
-    '-keyout', key, '-out', cert, '-days', '1',
-    '-subj', '/CN=aivg-test-proxy',
-    '-addext',
-    'subjectAltName=DNS:youtube.com,DNS:*.youtube.com,DNS:ytimg.com,DNS:*.ytimg.com',
-  ], { stdio: 'ignore' });
+  try {
+    execFileSync('openssl', [
+      'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+      '-keyout', key, '-out', cert, '-days', '1',
+      '-subj', '/CN=aivg-test-proxy',
+      '-addext',
+      'subjectAltName=DNS:youtube.com,DNS:*.youtube.com,DNS:ytimg.com,DNS:*.ytimg.com',
+    ], { stdio: 'ignore' });
+  } catch (err) {
+    rmSync(dir, { recursive: true, force: true });
+    throw new Error(
+      'Firefox kosumu icin `openssl` gerekiyor ama bulunamadi.\n' +
+        '  Linux : zaten kurulu, degilse  sudo apt install openssl\n' +
+        '  macOS : zaten kurulu, degilse  brew install openssl\n' +
+        '  Windows: Git for Windows ile gelir (Git Bash icinden kosun)\n' +
+        '  Not: bu yalnizca FIREFOX ucundan uca kosumu icindir.\n' +
+        '       Eklentinin kendisi ve Chrome/Opera kosumu openssl istemez.\n' +
+        `  Ayrinti: ${err.message}`,
+    );
+  }
   return {
     key: readFileSync(key),
     cert: readFileSync(cert),

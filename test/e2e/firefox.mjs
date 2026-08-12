@@ -252,6 +252,8 @@ async function main() {
     await session.execute(FILL, ['channelBlock', SETTINGS.channelBlock]);
     await session.execute(FILL, ['channelAllow', SETTINGS.channelAllow]);
     await session.execute(FILL, ['debug', true]);
+    // Sahte sunucunun kotasi yoktur; hiz sinirlayici yalnizca testi yavaslatir.
+    if (MOCK) await session.execute(FILL, ['maxRequestsPerMinute', '6000']);
     if (!LIVE) await session.execute(FILL, ['apiEndpoint', mock.endpoint]);
     await sleep(1200); // debounce'lu kaydetme
 
@@ -275,14 +277,21 @@ async function main() {
     // Ayarlarin gercekten yazildigini depodan dogrula — form doldurmak
     // tek basina kanit degil.
     const stored = await session.executeAsync(
+      // Kurallar AYRI ve senkron depoda durur (`rules:v1`), ayarlarin icinde
+      // degil. Yanlis anahtardan okumak "0 kural" gosterip testi bosuna
+      // dusuruyordu — kartlar dogru filtrelendigi halde.
       `const done = arguments[arguments.length - 1];
-       browser.storage.local.get(['settings:v1','secret:v1'])
-         .then(r => done({
-           ruleCount: (r['settings:v1']?.rules || []).length,
-           anchorCount: (r['settings:v1']?.rules || []).reduce((n, x) => n + (x.anchors||[]).length, 0),
-           hasKey: Boolean(r['secret:v1']?.apiKey),
-         }))
-         .catch(e => done({error: String(e)}));`,
+       Promise.all([
+         browser.storage.local.get(['secret:v1','rules:v1']),
+         browser.storage.sync.get('rules:v1').catch(() => ({})),
+       ]).then(([loc, syn]) => {
+         const rules = syn['rules:v1'] || loc['rules:v1'] || [];
+         done({
+           ruleCount: rules.length,
+           anchorCount: rules.reduce((n, x) => n + (x.anchors||[]).length, 0),
+           hasKey: Boolean(loc['secret:v1']?.apiKey),
+         });
+       }).catch(e => done({error: String(e)}));`,
     );
     log(`      depoya yazilan kural  : ${stored.ruleCount} kural, ${stored.anchorCount} capa`);
     log(`      anahtar ayri depoda   : ${stored.hasKey ? 'evet' : 'HAYIR'}`);
@@ -304,7 +313,7 @@ async function main() {
         );
         return t;
       },
-      { timeout: 20000, label: 'kalibrasyon sonucu' },
+      { timeout: 180000, label: 'kalibrasyon sonucu' },
     );
     log(`      ${probeText.replace(/\s+/g, ' ').trim().slice(0, 120)}`);
 

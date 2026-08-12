@@ -76,6 +76,18 @@ Kendi ölçütlerinizi düz cümlelerle yazıp "Kuralları üret" derseniz, kıs
 
 Kurallar tarayıcı hesabınızla senkronlanır — başka bir makinede yeniden üretilmez.
 
+### Platformlar
+
+Eklenti tarayıcı içinde çalışır; **Windows, macOS ve Linux** farkı yoktur.
+
+Geliştirme betikleri de üç platformda çalışır — paket üretimi (`npm run zip`)
+harici bir araca değil Node'un kendi `zlib`ine dayanır.
+
+Tek istisna Firefox uçtan uca koşumudur: `geckodriver` ve `openssl` ister.
+Windows'ta ikisi de Git for Windows / Firefox kurulumuyla gelir. Bu araçlar
+yalnızca o testi ilgilendirir — eklentinin kendisi ve Chrome/Opera koşumu
+hiçbirine ihtiyaç duymaz.
+
 ### Geliştirme
 
 ```bash
@@ -163,6 +175,19 @@ Every rule is editable from the options page: enable or disable, change anchors 
 You can also write your criteria as plain sentences and press "Generate rules"; the system derives the abbreviations and jargon for you. Generated rules are shown as a **proposal** — nothing is saved until you approve it.
 
 Rules sync with your browser account, so they are not regenerated on another machine.
+
+### Platforms
+
+The extension runs inside the browser, so **Windows, macOS and Linux** behave
+identically.
+
+The build scripts are cross-platform too — packaging (`npm run zip`) relies on
+Node's built-in `zlib` rather than an external tool.
+
+The one exception is the Firefox end-to-end run, which needs `geckodriver` and
+`openssl`. On Windows both ship with Git for Windows and the Firefox install.
+These are required only for that test; the extension itself and the
+Chrome/Opera run need neither.
 
 ### Development
 

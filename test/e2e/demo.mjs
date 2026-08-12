@@ -187,6 +187,9 @@ async function main() {
     await opt.locator('.adv summary').last().click();       // uc nokta
     await opt.fill('#apiEndpoint', mock.endpoint);
   }
+  // Sahte sunucunun kotasi yoktur; hiz sinirlayici yalnizca testi yavaslatir
+  // (121 capa, dakikada 80 -> ~90 sn). Uretim varsayilani degismez.
+  if (MOCK) await opt.fill('#maxRequestsPerMinute', '6000');
   await opt.waitForTimeout(900); // debounce'lu kaydetme
 
   /* --------------------------------------------------------------- */
