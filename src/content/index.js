@@ -4,7 +4,16 @@ import { getContentSettings, onSettingsChanged } from '../shared/storage.js';
 import { VERDICT } from '../shared/config.js';
 
 const STATE = new WeakMap(); // card -> { videoId, status }
-const WATCHDOG_MS = 10000;
+
+/**
+ * Bekci suresi GERCEK MODELE gore secilir.
+ *
+ * Olculdu: ucretsiz kademede es zamanli istekler sunucu tarafinda siraya
+ * giriyor; bir partinin tamamlanmasi dakikayi bulabiliyor. Onceki 10 sn'lik
+ * sinir kartlari yanit gelmeden temizliyor, yani filtre fiilen calismiyordu.
+ * Sahte sunucu aninda dondugu icin testlerde hic gorunmedi.
+ */
+const WATCHDOG_MS = 120000;
 
 let settings = null;
 let queue = [];

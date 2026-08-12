@@ -2,9 +2,10 @@
 /**
  * Ucundan uca gorunur demo + dogrulama.
  *
- *   node test/e2e/demo.mjs              # sahte API, gorunur pencere
- *   node test/e2e/demo.mjs --live       # gercek Gemini (GEMINI_API_KEY gerekir)
- *   node test/e2e/demo.mjs --headless   # ekransiz, yalniz dogrulama
+ *   GEMINI_API_KEY=... node test/e2e/demo.mjs     # GERCEK Gemini (varsayilan)
+ *   node test/e2e/demo.mjs --mock                 # sahte API, ag gerekmez
+ *   node test/e2e/demo.mjs --headless             # ekransiz, yalniz dogrulama
+ *   node test/e2e/demo.mjs --no-embed             # gomu kotasi tukendiyse: yalniz LLM katmani
  *
  * Uretim manifesti hic degistirilmez: gercek youtube.com adresine gidilir ve
  * istek Playwright tarafindan karsilanir. Boylece icerik betigi gercek
@@ -14,7 +15,7 @@
 import { chromium } from 'playwright';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { VIDEOS, fixtureHtml, TINY_JPEG } from './fixture.js';
 import { startMockServer } from './mockApi.js';
@@ -23,22 +24,35 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 // Sahte kipte test paketi kullanilir: KOD AYNI, manifest'e yalnizca
 // yerel uc nokta izni eklenmistir (Playwright service worker isteklerini
 // yakalayamadigi icin ag katmaninda degil, uc nokta ayariyla yonlendiriyoruz).
-const EXT = resolve(ROOT, process.argv.includes('--live') ? 'dist/chrome' : 'dist/chrome-test');
+// VARSAYILAN GERCEK MODEL.
+//
+// Sahte sunucu aninda ve kusursuz yanit verir; gercek model yavas, siraya
+// girer ve bazen beklenmedik sey doner. Varsayilan olarak sahteyi kosmak,
+// yalnizca gercek modelde ortaya cikan hatalari (zaman asimi, tutum yanilgisi)
+// gormeden "gecti" demeye yol aciyordu. Sahte sunucu artik yalnizca `--mock`
+// ile, ag olmadan hizli yineleme icin.
+const MOCK = process.argv.includes('--mock');
+const LIVE = !MOCK;
+const EXT = resolve(ROOT, LIVE ? 'dist/chrome' : 'dist/chrome-test');
 
-const LIVE = process.argv.includes('--live');
 const HEADLESS = process.argv.includes('--headless');
+// Gomu kotasi tukendiginde bile baglamsal katman olculebilsin diye
+const NO_EMBED = process.argv.includes('--no-embed');
 const SLOW = HEADLESS ? 0 : 380;
 
 const APIKEY = LIVE ? process.env.GEMINI_API_KEY : 'TEST-SAHTE-ANAHTAR';
 if (LIVE && !APIKEY) {
-  console.error('--live icin GEMINI_API_KEY ortam degiskeni gerekir.');
+  console.error(
+    'GEMINI_API_KEY ortam degiskeni gerekir.\n' +
+      'Ag olmadan sahte sunucuyla kosmak icin: node test/e2e/demo.mjs --mock',
+  );
   process.exit(2);
 }
 
+import { CRITERIA } from './criteria.js';
+
 const SETTINGS = {
-  topic: 'Türkiye siyaseti, meclis gündemi, partiler arası tartışmalar ve seçim haberleri',
-  anchors: 'siyasi tartışma programı\nseçim haberleri',
-  hardBlock: 'spoiler',
+  criteriaText: CRITERIA,
   channelBlock: 'Engelli Kanal',
   channelAllow: 'Güvenli Kanal',
 };
@@ -73,6 +87,8 @@ async function banner(page, text, sub = '') {
 /* ------------------------------------------------------------------ */
 
 async function main() {
+  // Kosum sonunda capa gomulerini diske alan kanca (kural uretildiginde kurulur)
+  let saveAnchorsAfterRun = null;
   const profile = await mkdtemp(resolve(tmpdir(), 'aivg-'));
   const mock = LIVE ? null : await startMockServer();
 
@@ -152,13 +168,21 @@ async function main() {
     'Kelime listesi değil: konu doğal dille yazılıyor, çapalar anlam merkezi olarak giriliyor.');
 
   await opt.fill('#apiKey', APIKEY);
-  await opt.fill('#topic', SETTINGS.topic);
-  await opt.fill('#anchors', SETTINGS.anchors);
-  await opt.locator('.adv summary').first().click();       // kesin kurallar
-  await opt.fill('#hardBlock', SETTINGS.hardBlock);
+  await opt.fill('#criteriaText', SETTINGS.criteriaText);
+  await opt.locator('.adv summary').first().click();       // kanal listeleri
   await opt.fill('#channelBlock', SETTINGS.channelBlock);
   await opt.fill('#channelAllow', SETTINGS.channelAllow);
   await opt.check('#debug');                                // katman izlerini gorunur kil
+
+  // Gomu kotasi ayri bir havuzdan gelir ve LLM kotasindan cok once tukenir.
+  // `--no-embed` anlamsal katmani kapatip her karti dogrudan baglamsal
+  // katmana gonderir: aday eleme olcumu kaybolur ama TUTUM ve ODAK olcumu
+  // gomu kotasi olmadan da yapilabilir.
+  if (NO_EMBED) {
+    await opt.uncheck('#useSemantic');
+    await opt.selectOption('#visionScope', 'all');
+    log('      --no-embed: anlamsal katman kapali, her kart baglamsal katmana gidiyor');
+  }
   if (!LIVE) {
     await opt.locator('.adv summary').last().click();       // uc nokta
     await opt.fill('#apiEndpoint', mock.endpoint);
@@ -166,13 +190,89 @@ async function main() {
   await opt.waitForTimeout(900); // debounce'lu kaydetme
 
   /* --------------------------------------------------------------- */
+  // Kural uretimi PAHALI ama sonucu SABIT. Her kosumda yeniden uretmek bosuna
+  // token harcamak olurdu; bir kere uretilip diske yazilir, sonraki kosumlar
+  // dogrudan onu yukler. Yeniden uretmek icin dosyayi sil.
+  // Sahte ve gercek modelin urettigi kurallar AYRI dosyada tutulur: sahte
+  // kosumda uretilen kurallari gercek kosumda kullanmak, olcumu tamamen
+  // gecersiz kilardi.
+  const RULES_FILE = resolve(ROOT, LIVE ? 'test/e2e/rules.live.json' : 'test/e2e/rules.mock.json');
+  const saved = await readFile(RULES_FILE, 'utf8').then(JSON.parse).catch(() => null);
+
+  if (saved?.rules?.length) {
+    step('1b', `Kurallar diskten yuklendi (${saved.rules.length} kural, LLM cagrisi YOK)`);
+    await opt.evaluate(async ([rules, anchors]) => {
+      const api = globalThis.browser || globalThis.chrome;
+      await api.storage.sync.set({ 'rules:v1': rules });
+      await api.storage.local.set({ 'rules:v1': rules });
+      // Capa gomuleri de geri yuklenir. Her kosum sifir profille acildigi icin
+      // aksi halde 124 capa BASTAN gomuluyor ve gunluk gomu kotasi (1000)
+      // birkac kosumda tukeniyordu — olcum yapmak imkansiz hale geliyordu.
+      if (anchors) await api.storage.local.set({ 'cache:anchors:v1': anchors });
+    }, [saved.rules, saved.anchors || null]);
+    if (saved.anchors) log(`      capa gomuleri de geri yuklendi (gomu cagrisi YOK)`);
+    await opt.reload({ waitUntil: 'domcontentloaded' });
+    await opt.waitForTimeout(700);
+  } else {
+  step('1b', 'Kurallar uretiliyor — LLM capalari kendisi turetiyor');
+  await banner(opt, 'ADIM 1b — Kural uretimi',
+    'Kullanici duz cumle yaziyor; kisaltmalari, jargonu ve tutum politikasini sistem turetiyor.');
+  await opt.click('#buildRules');
+  // Gercek modelde 14 olcut icin capa uretimi uzun surer; kisa zaman asimi
+  // basarisizligi HATA gibi gosterir, oysa sadece beklemek gerekiyordu.
+  await opt
+    .waitForSelector('#rulesProposal:not([hidden])', { timeout: 120000 })
+    .catch(async (err) => {
+      // Sayfanin kendi hata metni tek gercek tani kaynagi — Playwright'in
+      // zaman asimi mesaji sebebi soylemez.
+      const status = await opt.textContent('#rulesStatus').catch(() => '');
+      throw new Error(`kural uretimi basarisiz — sayfadaki durum: "${status}" (${err.message})`);
+    });
+  const proposed = await opt.locator('#proposalBody .rule').count();
+  log(`      ${proposed} kural onerildi`);
+
+  // ONAY: oneri kullanici onaylamadan kaydedilmez. Testin bu adimi atlamasi,
+  // onay akisinin kirilmasini gorunmez kilardi.
+  await opt.click('#acceptRules');
+  // `state: 'hidden'` sart: varsayilan 'visible' beklentisi gizlenen ogeyi
+  // asla saglayamaz ve test bosuna zaman asimina duser.
+  await opt.waitForSelector('#rulesProposal', { state: 'hidden', timeout: 10000 });
+  await opt.waitForTimeout(800);
+  const savedRules = await opt.locator('#rulesList .rule').count();
+  log(`      ${savedRules} kural kaydedildi`);
+
+  // Diske yaz — bir daha uretilmesin.
+  const produced = await opt.evaluate(async () => {
+    const api = globalThis.browser || globalThis.chrome;
+    const r = await api.storage.local.get('rules:v1');
+    return r['rules:v1'] || [];
+  });
+  await writeFile(RULES_FILE, JSON.stringify({ version: 1, rules: produced }, null, 2));
+  log(`      kurallar diske yazildi: ${RULES_FILE.split('/').pop()}`);
+  }
+
+  // Capa gomuleri kural kadar pahali: 100 capa + 24 arka plan = 124 gomu.
+  // Kosum sonunda diske alinir ki sonraki kosum hic gommesin.
+  saveAnchorsAfterRun = async () => {
+    const bundle = await opt.evaluate(async () => {
+      const api = globalThis.browser || globalThis.chrome;
+      const r = await api.storage.local.get('cache:anchors:v1');
+      return r['cache:anchors:v1'] || null;
+    });
+    if (!bundle) return;
+    const cur = await readFile(RULES_FILE, 'utf8').then(JSON.parse).catch(() => ({ rules: [] }));
+    await writeFile(RULES_FILE, JSON.stringify({ ...cur, anchors: bundle }, null, 2));
+    log(`  capa gomuleri diske alindi — sonraki kosum gomu cagrisi yapmayacak`);
+  };
+
+  /* --------------------------------------------------------------- */
   step(2, 'Kalibrasyon paneli — hangi katmanin karar verdigi gorulüyor');
   await banner(opt, 'ADIM 2 — Kalibrasyon',
     'Tek bir başlık deneniyor. Skor ve karar veren katman görünür; önbelleğe yazılmaz.');
-  await opt.fill('#probeTitle', 'Kulisler hareketli: koalisyon görüşmeleri sürüyor');
-  await opt.fill('#probeChannel', 'Ankara Kulis');
+  await opt.fill('#probeTitle', 'LCK finalinde inanılmaz geri dönüş');
+  await opt.fill('#probeChannel', 'Espor Arena');
   await opt.click('#probeBtn');
-  await opt.waitForSelector('#probeOut dl', { timeout: 15000 });
+  await opt.waitForSelector('#probeOut dl', { timeout: 240000 });
   const probeText = await opt.textContent('#probeOut');
   log(`      ${probeText.replace(/\s+/g, ' ').trim()}`);
   await opt.waitForTimeout(SLOW * 3);
@@ -186,9 +286,18 @@ async function main() {
 
   // Kararlarin oturmasini bekle: hicbir kart 'pending' kalmamali
   await yt.waitForFunction(
-    () => document.querySelectorAll('[data-aivg="pending"]').length === 0,
+    // "pending yok" YETMEZ: bekci zaman asiminda karti temizler, kart da
+    // pending olmaktan cikar. O an olcum yaparsak karar gelmeden "gecti"
+    // sanariz. Gercek kosul: HER kart bir karara baglanmis olmali.
+    () => {
+      const cards = document.querySelectorAll('ytd-rich-item-renderer');
+      if (cards.length === 0) return false;
+      return [...cards].every(
+        (c) => c.getAttribute('data-aivg') === 'blocked' || c.hasAttribute('data-aivg-decided'),
+      );
+    },
     null,
-    { timeout: 30000 },
+    { timeout: 180000 },
   ).catch(() => log('      \x1b[33muyari: bazi kartlar pending kaldi (bekci devreye girmis olabilir)\x1b[0m'));
   await yt.waitForTimeout(1200);
 
@@ -239,6 +348,47 @@ async function main() {
 
   log('');
   log(`  \x1b[1m${pass}/${VIDEOS.length}\x1b[0m kart beklendigi gibi`);
+
+  // Karar hattinin HAM ciktisi. Kart uzerindeki isaretler hata metnini
+  // tasimaz (gecen kartta iz birakilmaz), dolayisiyla "neden error-policy"
+  // sorusu ekrandan cevaplanamaz. Arka plana dogrudan soruyoruz.
+  const raw = await opt.evaluate(async (items) => {
+    const api = globalThis.browser || globalThis.chrome;
+    return api.runtime.sendMessage({ type: 'evaluate', items });
+  }, VIDEOS.map((v) => ({ videoId: v.id, title: v.title, channel: v.channel })));
+
+  // Ayarlarin GERCEKTEN kaydedildigini depodan dogrula. Form doldurmak kanit
+  // degil: kart "—" gosterdiginde sebep API hatasi mi yoksa bos ayar mi,
+  // ancak bu okuma ayirt eder.
+  const stored = await opt.evaluate(async () => {
+    const api = globalThis.browser || globalThis.chrome;
+    const [loc, syn] = await Promise.all([
+      api.storage.local.get(['settings:v1', 'secret:v1', 'rules:v1']),
+      api.storage.sync.get('rules:v1').catch(() => ({})),
+    ]);
+    const s = loc['settings:v1'] || {};
+    const rules = syn['rules:v1'] || loc['rules:v1'] || [];
+    return {
+      channelBlock: s.channelBlock || '(BOS)',
+      channelAllow: s.channelAllow || '(BOS)',
+      enabled: s.enabled,
+      hasKey: Boolean(loc['secret:v1']?.apiKey),
+      ruleCount: rules.length,
+      anchorCount: rules.reduce((n, r) => n + (r.anchors || []).length, 0),
+      patternRules: rules.filter((r) => r.stanceSensitive === false).length,
+    };
+  });
+  log(`\n  depodaki ayarlar:`);
+  log(`    kanal kara/beyaz : ${stored.channelBlock} / ${stored.channelAllow}`);
+  log(`    anahtar / etkin  : ${stored.hasKey ? 'var' : 'YOK'} / ${stored.enabled}`);
+  log(`    kural / capa     : ${stored.ruleCount} kural, ${stored.anchorCount} capa`);
+  log(`    kalip yetkili    : ${stored.patternRules} kural (tutum-duyarsiz)`);
+
+  const errors = [...new Set((raw || []).map((r) => r?.error).filter(Boolean))];
+  if (errors.length) {
+    log(`\n  \x1b[31mkarar hatti hatalari:\x1b[0m`);
+    for (const e of errors.slice(0, 5)) log(`    ${e.slice(0, 220)}`);
+  }
   if (!LIVE) {
     log(`  API cagrilari: ${mock.counters.embed} toplu gomu (${mock.counters.embedTexts} metin), ` +
         `${mock.counters.text} metin LLM, ${mock.counters.vision} gorsel LLM`);
@@ -263,7 +413,7 @@ async function main() {
   await yt.waitForFunction(
     () => document.querySelectorAll('[data-aivg="pending"]').length === 0,
     null,
-    { timeout: 20000 },
+    { timeout: 120000 },
   ).catch(() => {});
   const cachedLabels = await yt.evaluate(() =>
     [...document.querySelectorAll('[data-aivg="blocked"]')].map((c) => ({
@@ -285,8 +435,10 @@ async function main() {
         (cacheOk ? '\x1b[32m(onbellek calisiyor)\x1b[0m' : '\x1b[33m(onbellek atlanmis)\x1b[0m'));
   }
 
+  await saveAnchorsAfterRun?.();
+
   await mkdir(resolve(ROOT, 'test/e2e/out'), { recursive: true });
-  await yt.screenshot({ path: resolve(ROOT, 'test/e2e/out/akis.png'), fullPage: true });
+  await yt.screenshot({ path: resolve(ROOT, 'test/e2e/out/akis.png'), fullPage: true, timeout: 60000 });
   await opt.screenshot({ path: resolve(ROOT, 'test/e2e/out/ayarlar.png'), fullPage: true });
   log(`\n  ekran goruntuleri: test/e2e/out/`);
 

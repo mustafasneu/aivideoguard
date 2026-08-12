@@ -18,14 +18,15 @@ import { EMBED_DIM } from '../../src/shared/config.js';
  * yuksek benzerlik uretilebilir; gercek gomunun yaptigi is budur.
  */
 const CONCEPTS = {
-  siyaset: [
-    'meclis', 'butce', 'koalisyon', 'kulis', 'secim', 'parti', 'milletvekili',
-    'genel kurul', 'siyaset', 'ankara', 'duzenleme', 'gundem',
+  oyun: [
+    'lck', 'msi', 'worlds', 'jungle', 'rift', 'adc', 'valorant', 'ajan',
+    'league of legends', 'lol', 'sampiyon', 'espor', 'solo queue',
   ],
-  yemek: ['corba', 'mercimek', 'tarif', 'mutfak', 'yemek', 'pisir'],
-  yazilim: ['rust', 'ownership', 'kod', 'yazilim', 'programlama'],
-  gezi: ['kayak', 'erciyes', 'sezon', 'gezi', 'rota', 'tatil'],
-  dizi: ['spoiler', 'dizi', 'bolum', 'sezon finali'],
+  magazin: ['unlu', 'magazin', 'ayrilik', 'iddia', 'kulis', 'dedikodu'],
+  yem: ['inanamadi', 'gorenler', 'boyle yansidi', 'kameraya', 'viral', 'sok'],
+  siddet: ['dehset', 'kavga', 'saldiri', 'siddet', 'sokak ortasinda'],
+  din: ['din', 'inanan', 'kutsal', 'dalga gecen', 'dinler tarihi'],
+  notr: ['corba', 'mercimek', 'mutfak', 'rust', 'ownership', 'kod', 'desk', 'budget'],
 };
 
 const CONCEPT_KEYS = Object.keys(CONCEPTS);
@@ -67,17 +68,182 @@ export function fakeEmbed(text) {
   return vec.map((v) => v / norm);
 }
 
-/** LLM karari: kavram ortusmesine bakar, deterministik. */
-export function fakeJudge(promptText) {
-  const t = fold(promptText);
-  // Istem icinde hem konu hem baslik var; siyaset kavramindan kac terim geciyor?
-  let hits = 0;
-  for (const term of CONCEPTS.siyaset) if (t.includes(fold(term))) hits++;
-  const related = hits >= 3;
+/** Istemden video basligini ve kanalini ceker. */
+function readVideo(promptText) {
+  const title = promptText.match(/- Baslik: (.*)/)?.[1] || '';
+  const channel = promptText.match(/- Kanal: (.*)/)?.[1] || '';
+  return { title, channel };
+}
+
+/**
+ * Istemdeki kural bloklarini ayristirir:
+ *   [r1] Etiket: aciklama
+ *        ilgili kavramlar: capa1, capa2, ...
+ *
+ * CAPA SATIRI SART: kurali yalnizca aciklamasina bakarak eslestirmek yanlisti.
+ * Kullanicinin cumlesi ("cinsel cagrisimli yem baslikli videolar") kavram
+ * terimlerini icermez; eslesmeyi saglayan sey capalardir.
+ */
+function readRules(promptText) {
+  const out = [];
+  const lines = promptText.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const head = lines[i].match(/^\[(\w+)\] ([^:]+): (.*)$/);
+    if (!head) continue;
+    const anchors = lines[i + 1]?.match(/ilgili kavramlar:\s*(.*)$/)?.[1] || '';
+    out.push({ id: head[1], label: head[2], description: head[3], anchors });
+  }
+  return out;
+}
+
+/** Metnin en cok hangi kavrama dustugu. */
+function dominantConcept(text) {
+  const t = fold(text);
+  let best = null;
+  let bestHits = 0;
+  for (const [key, terms] of Object.entries(CONCEPTS)) {
+    let hits = 0;
+    for (const term of terms) if (t.includes(fold(term))) hits++;
+    if (hits > bestHits) {
+      bestHits = hits;
+      best = key;
+    }
+  }
+  return bestHits > 0 ? best : null;
+}
+
+/** Baslikta tutum isaretleri. */
+function readStance(title) {
+  const t = fold(title);
+  if (/(elestir|biraktim|artik eglenceli degil|neden biraktim|dalga gecen|kotule)/.test(t)) {
+    return 'elestirel';
+  }
+  if (/(ders|tarihi|akademi|kaynaklari|analiz|inceleme)/.test(t)) return 'notr';
+  return 'destekleyici';
+}
+
+/**
+ * LLM karari — deterministik.
+ *
+ * Gercek modelin yaptigi isin taklidi: videonun hangi OLCUTE girdigini ve o
+ * olcute karsi TUTUMUNU dondurur. Tutum kritik: ayni kavrama giren iki video
+ * (oyunu oven / oyunu elestiren) farkli sonuc almalidir.
+ */
+export function fakeJudge(promptText, hasImage = false) {
+  const { title, channel } = readVideo(promptText);
+  return judgeOne(title, channel, readRules(promptText), hasImage);
+}
+
+/**
+ * TOPLU yargi taklidi — istemdeki her video icin ayri kayit.
+ *
+ * Uretimde tek istekte 20 video sorulur; sahte sunucunun da ayni sekilde
+ * cevap vermesi sart, aksi halde toplu yolu hic sinanmamis olur.
+ */
+export function fakeJudgeBatch(promptText) {
+  const rules = readRules(promptText);
+  const verdicts = [];
+  const re = /^(\d+)\. Baslik: (.*?) \| Kanal: (.*)$/gm;
+  let m;
+  while ((m = re.exec(promptText))) {
+    const [, iRaw, title, channel] = m;
+    const one = judgeOne(title, channel, rules, false);
+    verdicts.push({ i: Number(iRaw), ...one });
+  }
+  return { verdicts };
+}
+
+/** Tek video karari — hem tekli hem toplu yol bunu kullanir. */
+function judgeOne(title, channel, rules, hasImage) {
+  const findRule = (concept) => rules.find((r) => dominantConcept(r.anchors) === concept);
+  const titleConcept = dominantConcept(title);
+  const channelConcept = dominantConcept(channel);
+
+  if (titleConcept && titleConcept !== 'notr') {
+    const rule = findRule(titleConcept);
+    if (!rule) {
+      return { ruleId: '', related: false, stance: 'ilgisiz', confidence: 0.8, reason: 'eslesen olcut yok' };
+    }
+    const stance = readStance(title);
+    return {
+      ruleId: rule.id,
+      related: true,
+      stance,
+      confidence: 0.88,
+      reason: `${titleConcept} olcutu — ${stance}`,
+    };
+  }
+
+  // Baslik ipucu vermiyor ama kanal veriyor: kullanicinin kurali geregi
+  // kapak gorseline bakilmali. Metin katmani KARARSIZ kalmali ki yukselsin.
+  if (channelConcept && channelConcept !== 'notr') {
+    const rule = findRule(channelConcept);
+    if (rule && hasImage) {
+      return {
+        ruleId: rule.id,
+        related: true,
+        stance: 'destekleyici',
+        visualCue: 'kapakta oyun arayuzu/logosu',
+        confidence: 0.9,
+        reason: 'kapak gorselinden tanindi',
+      };
+    }
+    return {
+      ruleId: '',
+      related: false,
+      stance: 'ilgisiz',
+      confidence: 0.5, // yukseltme esiginin ALTINDA — kasitli
+      reason: 'basliktan anlasilmiyor',
+    };
+  }
+
+  return { ruleId: '', related: false, stance: 'ilgisiz', confidence: 0.85, reason: 'olcut disi' };
+}
+
+/**
+ * Kural yazan katmanin taklidi.
+ *
+ * Gercek modelin yaptigi is: kullanicinin duz cumlesini capalara ve bir tutum
+ * turune cevirmek. Burada bunu anahtar kelimeyle deterministik yapiyoruz.
+ */
+export function fakeCurator(promptText) {
+  const lines = [];
+  const re = /^\s*(\d+)\.\s+(.*)$/gm;
+  let m;
+  while ((m = re.exec(promptText))) lines.push(m[2].trim());
+
   return {
-    related,
-    confidence: related ? 0.88 : 0.82,
-    reason: related ? 'siyasi gundem icerigi' : 'konuyla ilgisiz',
+    rules: lines.map((description) => {
+      const d = fold(description);
+      let concept = 'notr';
+      let stanceKind = 'konu';
+
+      if (/(league|lol|valorant|oyun)/.test(d)) concept = 'oyun';
+      else if (/magazin/.test(d)) concept = 'magazin';
+      else if (/(yem|clickbait|cinsel|ciplak)/.test(d)) concept = 'yem';
+      else if (/(siddet|kufur)/.test(d)) concept = 'siddet';
+      else if (/(din|kutsal)/.test(d)) concept = 'din';
+
+      // Tutum olcutun TANIMINA girmis mi?
+      if (/hakaret/.test(d)) stanceKind = 'hakaret';
+      else if (/(oven|ozendiren|masum gosteren)/.test(d)) stanceKind = 'ovgu';
+
+      // Tutum bu olcutte karari degistirir mi? Yem baslik kaliplarinda
+      // degistirmez — kalibin kendisi zaten istenmeyen seydir.
+      const stanceSensitive = concept !== 'yem';
+
+      return {
+        label: description.slice(0, 40),
+        anchors: CONCEPTS[concept] || [],
+        literals: [],
+        // Kalip yetkisi yalnizca tutum-duyarsiz kuralda anlamli
+        patterns: stanceSensitive ? [] : CONCEPTS.yem,
+        stanceSensitive,
+        stanceKind,
+        breadth: /her sey|rahatsiz/.test(d) ? 'genis' : 'dar',
+        note: '',
+      };
+    }),
   };
 }
 
@@ -91,7 +257,10 @@ export function fakeJudge(promptText) {
 import { createServer } from 'node:http';
 
 export async function startMockServer() {
-  const counters = { embed: 0, embedTexts: 0, text: 0, vision: 0, models: 0, imageBytes: 0 };
+  const counters = {
+    embed: 0, embedTexts: 0, text: 0, vision: 0,
+    curator: 0, audit: 0, models: 0, imageBytes: 0,
+  };
 
   const server = createServer((req, res) => {
     const chunks = [];
@@ -142,6 +311,23 @@ export async function startMockServer() {
 
       if (url.includes(':generateContent')) {
         const parts = post.contents?.[0]?.parts || [];
+        const promptText = parts.map((p) => p.text || '').join('\n');
+
+        // Kural yazan katman mi, video yargilayan katman mi? Istem icerigi
+        // ayirir; ikisi de ayni uc noktayi kullanir.
+        if (promptText.includes('KULLANICININ CUMLELERI:')) {
+          counters.curator++;
+          return send({
+            candidates: [{ content: { parts: [{ text: JSON.stringify(fakeCurator(promptText)) }] } }],
+          });
+        }
+        if (promptText.includes('kural kumesi var')) {
+          counters.audit++;
+          return send({
+            candidates: [{ content: { parts: [{ text: JSON.stringify({ findings: [] }) }] } }],
+          });
+        }
+
         const img = parts.find((p) => p.inline_data || p.inlineData);
         if (img) {
           counters.vision++;
@@ -149,9 +335,18 @@ export async function startMockServer() {
         } else {
           counters.text++;
         }
-        const promptText = parts.map((p) => p.text || '').join(' ');
+        // Toplu istem mi, tek video mu? Toplu istemde her kayit ayri dondurulur.
+        if (/^\d+\. Baslik:/m.test(promptText)) {
+          return send({
+            candidates: [
+              { content: { parts: [{ text: JSON.stringify(fakeJudgeBatch(promptText)) }] } },
+            ],
+          });
+        }
         return send({
-          candidates: [{ content: { parts: [{ text: JSON.stringify(fakeJudge(promptText)) }] } }],
+          candidates: [
+            { content: { parts: [{ text: JSON.stringify(fakeJudge(promptText, Boolean(img))) }] } },
+          ],
         });
       }
 

@@ -9,26 +9,19 @@
  * gomulur, boylece kaydirma sirasinda istek sayisi ~40 kat duşer.
  */
 
-import { MODELS, EMBED_DIM } from '../shared/config.js';
-import { l2normalize } from '../shared/vector.js';
-import { parseList } from '../shared/text.js';
+import { MODELS, EMBED_DIM, BACKGROUND_TEXTS } from '../shared/config.js';
+import { l2normalize, centroid } from '../shared/vector.js';
+import { anchorTemplate } from '../shared/text.js';
+import { normalizeRules, allAnchors } from '../shared/rules.js';
 import { callGemini } from './net.js';
 import { getAnchorBundle, putAnchorBundle } from './cache.js';
 
+// Sablon `shared/text.js` icinde durur: kalibrasyon araci (Node) tarayici
+// API'lerine bagli bu modulu yukleyemez, ama AYNI kalibi kullanmak zorundadir.
+export { anchorTemplate };
+
 const BATCH_SIZE = 40;
 const BATCH_WAIT_MS = 120;
-
-/**
- * Capa ve video metnine uygulanan ORTAK sablon.
- *
- * Tek kelimelik bir capanin ("spoiler") ciplak gomusu, tam cumlelik bir video
- * basligiyla ayni uzayda zayif kalir. Ayni kalibi iki tarafa da uygulayarak
- * bu yanliligi dengeliyoruz — sablonun kendisi iki vektorde de ayni yonde
- * katki yaptigi icin karsilastirmada sadelesir.
- */
-export function anchorTemplate(t) {
-  return `${t} konulu video`;
-}
 
 /** Bekleyen gomu istekleri — mikro-toplama kuyrugu. */
 let pending = [];
@@ -115,12 +108,14 @@ async function computeAnchors(settings, hash) {
   const cached = await getAnchorBundle(hash);
   if (cached) return cached;
 
-  const topic = (settings.topic || '').trim();
-  const anchorTexts = parseList(settings.anchors);
+  // Capalar artik tek bir havuzdan degil, KURALLARDAN gelir. Her capa hangi
+  // kurala ait oldugunu tasir; anlamsal katman bu sayede "hangi olcut
+  // tetiklendi" bilgisini LLM'e devredebiliyor.
+  const entries = allAnchors(normalizeRules(settings.rules));
 
-  if (!topic && anchorTexts.length === 0) {
-    const empty = { h: hash, topicVec: null, anchors: [] };
-    await putAnchorBundle(hash, null, []);
+  if (entries.length === 0) {
+    const empty = { h: hash, topicVec: null, anchors: [], bg: null };
+    await putAnchorBundle(hash, null, [], null);
     return empty;
   }
 
@@ -134,12 +129,19 @@ async function computeAnchors(settings, hash) {
   // Ciplak kelimenin zayif gomusu sorunu, iki tarafa AYNI sablonu uygulayarak
   // simetrik cozulur: capa da video metni de "<metin> konulu video" kalibinda
   // gomulur, ortak bias iki tarafta sadelesir.
-  const [topicVec, ...anchorVecs] = await Promise.all([
-    topic ? embed(topic, settings) : Promise.resolve(null),
-    ...anchorTexts.map((t) => embed(anchorTemplate(t), settings)),
+  // Arka plan kulliyati da AYNI toplu istekte gomulur: ayri cagri yapmak
+  // gereksiz gecikme olurdu, mikro-toplama kuyrugu zaten birlestirir.
+  const vecs = await Promise.all([
+    ...entries.map((e) => embed(anchorTemplate(e.text), settings)),
+    ...BACKGROUND_TEXTS.map((t) => embed(t, settings)),
   ]);
 
-  const anchors = anchorTexts.map((text, i) => ({ text, vec: anchorVecs[i] }));
-  await putAnchorBundle(hash, topicVec, anchors);
-  return { h: hash, topicVec, anchors };
+  const anchorVecs = vecs.slice(0, entries.length);
+  const bgVecs = vecs.slice(entries.length);
+
+  const bg = centroid(bgVecs);
+  const anchors = entries.map((e, i) => ({ text: e.text, ruleId: e.ruleId, vec: anchorVecs[i] }));
+
+  await putAnchorBundle(hash, null, anchors, bg);
+  return { h: hash, topicVec: null, anchors, bg };
 }

@@ -21,7 +21,15 @@ const watch = args.includes('--watch');
 // Ucundan uca test uretim paketini calistirabilsin diye.
 const testBuild = args.includes('--test');
 const only = args.find((a) => a.startsWith('--target='))?.split('=')[1];
-const TARGETS = only ? [only] : testBuild ? ['chrome-test'] : ['firefox', 'chrome'];
+// Opera Chromium tabanlidir ve ayni MV3 API'lerini kullanir; kod farki yoktur.
+// Yine de ayri paket uretiliyor: magaza gonderimleri ayri, ve Opera'nin
+// surum tabani Chrome'dan geride olabildigi icin `minimum_chrome_version`
+// dayatmasi kurulumu gereksiz yere engelleyebilir.
+const TARGETS = only
+  ? [only]
+  : testBuild
+    ? ['chrome-test', 'firefox-test']
+    : ['firefox', 'chrome', 'opera'];
 
 const VERSION = '1.0.0';
 
@@ -51,14 +59,19 @@ function manifest(target) {
     ],
   };
 
-  if (target === 'firefox') {
-    return {
+  if (target === 'firefox' || target === 'firefox-test') {
+    const ff = {
       ...base,
       background: { scripts: ['background/index.js'], type: 'module' },
       browser_specific_settings: {
         gecko: { id: 'aivideoguard@mustafaseker.dev', strict_min_version: '115.0' },
       },
     };
+    if (target === 'firefox-test') {
+      ff.name = 'AI Video Guard (TEST)';
+      ff.host_permissions = [...base.host_permissions, 'http://127.0.0.1/*'];
+    }
+    return ff;
   }
 
   const chrome = {
@@ -66,6 +79,13 @@ function manifest(target) {
     background: { service_worker: 'background/index.js', type: 'module' },
     minimum_chrome_version: '116',
   };
+
+  if (target === 'opera') {
+    // Opera'nin Chromium tabani Chrome'un gerisinde olabilir; sabit bir alt
+    // surum dayatmak kurulumu gereksiz yere reddettirir. API kullanimimiz
+    // MV3'un ortak yuzeyinde kaldigi icin bu sinir zaten gerekli degil.
+    delete chrome.minimum_chrome_version;
+  }
 
   if (target === 'chrome-test') {
     chrome.name = 'AI Video Guard (TEST)';
@@ -92,7 +112,7 @@ async function buildTarget(target) {
   const common = {
     outdir: out,
     bundle: true,
-    target: target === 'firefox' ? ['firefox115'] : ['chrome116'],
+    target: target.startsWith('firefox') ? ['firefox115'] : ['chrome116'],
     // Her paket polyfill'in kendi kopyasini gomer; eklenti paketlerinde
     // ortak chunk yuklemesi guvenilir degil.
     splitting: false,

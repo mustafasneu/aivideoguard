@@ -65,6 +65,22 @@ export function literalMatches(text, entries) {
   return null;
 }
 
+/**
+ * Capa ve (istenirse) video metnine uygulanan ORTAK sablon.
+ *
+ * Tek kelimelik bir capanin ("spoiler") ciplak gomusu, tam cumlelik bir video
+ * basligiyla ayni uzayda zayif kalir. Ayni kalibi iki tarafa da uygulamak bu
+ * yanliligi dengeler; sablon iki vektorde de ayni yonde katki yaptigi icin
+ * karsilastirmada sadelesir.
+ *
+ * BURADA DURUYOR ki kalibrasyon araci ile uretim ayni kalibi kullansin.
+ * Iki yerde ayri ayri yazilsaydi sessizce birbirinden ayrilirlardi ve
+ * kalibrasyon sonucu uretimde gecersiz olurdu.
+ */
+export function anchorTemplate(t) {
+  return `${t} konulu video`;
+}
+
 /** Bir videoyu temsil eden gomulecek metin. */
 export function videoText({ title, channel }) {
   const parts = [];

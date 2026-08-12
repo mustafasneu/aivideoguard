@@ -6,26 +6,56 @@
  */
 
 import browser from 'webextension-polyfill';
-import { evaluateSafe } from './pipeline.js';
+import { evaluateSafe, evaluateAll } from './pipeline.js';
 import { getSettings } from '../shared/storage.js';
 import { listModels } from './net.js';
 import { getStats, clearVerdicts, clearChannels, getChannelProfile } from './cache.js';
+import { expandCriteria, auditRules, reviseRule } from './curator.js';
 import { normalize } from '../shared/text.js';
 
 /** Ayni video icin es zamanli istekleri tek degerlendirmede birleştirir. */
 const inflight = new Map();
 
+/**
+ * Bir partiyi TOPLU degerlendirir.
+ *
+ * Video basina LLM cagrisi olceklenmiyordu: gercek akista tek kaydirmada 60+
+ * kart var ve ucretsiz kademede istekler siraya giriyor (olculdu: 14 es
+ * zamanli istek ~50 sn). `evaluateAll` ucuz katmanlari video basina kosar,
+ * baglamsal katmani ise gruplar halinde tek istemde sorar.
+ *
+ * Ayni video icin ucusan istek varsa ona baglanilir — YouTube ayni karti
+ * kaydirma sirasinda birden fazla kez gorunur alana sokabiliyor.
+ */
 async function handleEvaluate(items) {
   const settings = await getSettings();
-  return Promise.all(
-    items.map((item) => {
-      const key = item.videoId || `${item.title}|${item.channel}`;
-      if (inflight.has(key)) return inflight.get(key);
-      const p = evaluateSafe(item, settings).finally(() => inflight.delete(key));
-      inflight.set(key, p);
-      return p;
-    }),
-  );
+
+  const keyOf = (item) => item.videoId || `${item.title}|${item.channel}`;
+  const fresh = [];
+  const freshIdx = [];
+  const out = new Array(items.length);
+
+  items.forEach((item, i) => {
+    const k = keyOf(item);
+    if (inflight.has(k)) out[i] = inflight.get(k);
+    else {
+      freshIdx.push(i);
+      fresh.push(item);
+    }
+  });
+
+  if (fresh.length > 0) {
+    const batch = evaluateAll(fresh, settings);
+    fresh.forEach((item, j) => {
+      const p = batch.then((rs) => rs[j]);
+      const k = keyOf(item);
+      inflight.set(k, p);
+      p.finally(() => inflight.delete(k));
+      out[freshIdx[j]] = p;
+    });
+  }
+
+  return Promise.all(out);
 }
 
 browser.runtime.onMessage.addListener((msg) => {
@@ -51,6 +81,18 @@ browser.runtime.onMessage.addListener((msg) => {
 
     case 'getChannelProfile':
       return getChannelProfile(normalize(msg.channel));
+
+    // --- Kural yazan katman ------------------------------------------
+    // Bu uclarin hicbiri KAYDETMEZ. Oneri uretirler; kaydetme karari
+    // ayarlar sayfasindaki onay akisina aittir.
+    case 'buildRules':
+      return getSettings().then((s) => expandCriteria(msg.descriptions || [], s));
+
+    case 'auditRules':
+      return getSettings().then((s) => auditRules(msg.rules || [], s));
+
+    case 'reviseRule':
+      return getSettings().then((s) => reviseRule(msg.rule, msg.feedback, s));
 
     default:
       return undefined;

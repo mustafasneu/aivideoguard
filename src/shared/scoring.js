@@ -12,8 +12,29 @@ function fnv(material) {
   return h.toString(36);
 }
 
+/**
+ * Bir anahtarin parmak izine katacagi malzeme.
+ *
+ * Duz `${settings[k]}` YETMEZ: kural kumesi bir dizi nesnedir ve sablon
+ * enterpolasyonu onu "[object Object]" yapar. Boyle bir parmak izi kurallar
+ * degisince DEGISMEZ; onbellek eski kararlari sonsuza kadar dogru sanardi.
+ */
+function material(settings, key) {
+  // Yalnizca capalari ilgilendiren izdusum: kullanicinin tutum politikasini
+  // degistirmesi capalari yeniden gomdurmemeli, o pahali bir istektir.
+  if (key === 'rulesAnchors') {
+    return JSON.stringify(
+      (settings.rules || [])
+        .filter((r) => r && r.enabled !== false)
+        .map((r) => [r.id, r.anchors || []]),
+    );
+  }
+  const v = settings[key];
+  return v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v);
+}
+
 function fingerprint(settings, keys) {
-  return fnv(keys.map((k) => `${k}=${settings[k]}`).join('|'));
+  return fnv(keys.map((k) => `${k}=${material(settings, k)}`).join('|'));
 }
 
 /**
@@ -52,11 +73,14 @@ export function channelBoost(profile, settings) {
 }
 
 /**
- * Anlamsal skoru esiklere gore banda ayirir.
- * 'block' | 'allow' | 'ask'  — 'ask' baglamsal katmanlara devreder.
+ * Anlamsal skoru aday esigine gore ayirir.
+ *
+ * 'ask'   = aday, baglamsal katmana gider
+ * 'allow' = aday degil, hic LLM gormez
+ *
+ * 'block' bandi KASITLI OLARAK YOKTUR: anlamsal katman artik tek basina
+ * engellemez. Gerekcesi `config.js` icindeki `tCandidate` aciklamasinda.
  */
 export function band(score, settings) {
-  if (score >= settings.tBlock) return 'block';
-  if (score < settings.tAsk) return 'allow';
-  return 'ask';
+  return score >= settings.tCandidate ? 'ask' : 'allow';
 }

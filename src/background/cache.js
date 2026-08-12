@@ -46,7 +46,7 @@ export async function getVerdict(videoId, hash) {
  *   eslesen capa/kural). Onbellege YAZILMASI sart: aksi halde ikinci
  *   goruntulemede kart "Gizlendi" der ama nedenini soyleyemez.
  */
-export async function putVerdict(videoId, hash, verdict, score, layer, reason) {
+export async function putVerdict(videoId, hash, verdict, score, layer, reason, rule) {
   if (!videoId) return;
   const all = await loadVerdicts();
   all[videoId] = {
@@ -56,6 +56,9 @@ export async function putVerdict(videoId, hash, verdict, score, layer, reason) {
     l: layer,
     ts: Date.now(),
     ...(reason ? { r: String(reason).slice(0, 120) } : {}),
+    // Hangi olcut yakaladi — kullanici "neden gizlendi" diye sordugunda
+    // gerekce tek basina yetmez, kuralin adi da lazim.
+    ...(rule ? { k: String(rule).slice(0, 60) } : {}),
   };
 
   const keys = Object.keys(all);
@@ -152,9 +155,11 @@ export async function getAnchorBundle(hash) {
   return b;
 }
 
-export async function putAnchorBundle(hash, topicVec, anchors) {
+export async function putAnchorBundle(hash, topicVec, anchors, bg = null) {
   await browser.storage.local.set({
-    [ANCHOR_KEY]: { h: hash, topicVec, anchors, ts: Date.now() },
+    // `bg` = anizotropi merkezi. Capalarla AYNI pakette durur cunku ayni
+    // gomu modeline baglidir; model degisince ikisi birlikte gecersizlesmeli.
+    [ANCHOR_KEY]: { h: hash, topicVec, anchors, bg, ts: Date.now() },
   });
 }
 

@@ -38,28 +38,36 @@
     <h2>Ne filtrelensin</h2>
 
     <label class="field">
-      <span class="lbl">Kacinmak istediginiz konu</span>
-      <span class="hint">Dogal dille yazin. Kelime listesi degil — sistem anlami kavrar.
-        Ornek: "X partisinin siyasetcileri ve onlarla ilgili tartisma programlari".</span>
-      <textarea id="topic" rows="3" placeholder="Gormek istemediginiz konuyu birkac cumleyle anlatin..."></textarea>
+      <span class="lbl">Olcutleriniz <em>(her satira bir tane)</em></span>
+      <span class="hint">Kendi cumlelerinizle yazin. Kelime listesi degil.
+        Ornek: "League of Legends ve onu animsatan kisaltmalar" — kisaltmalari,
+        jargonu ve oyuncu adlarini sistem kendisi turetir.</span>
+      <textarea id="criteriaText" rows="8"
+        placeholder="League of Legends ve onu animsatan kisaltmalar&#10;magazin haberleri&#10;siddet iceren veya ozendiren video ve oyunlar&#10;..."></textarea>
     </label>
 
-    <label class="field">
-      <span class="lbl">Anlam capalari <em>(her satira bir tane)</em></span>
-      <span class="hint">Her satir bir anlam merkezidir, kelime eslesmesi DEGIL.
-        "spoiler" yazdiginizda icinde o kelime gecmeyen ama spoiler iceren basliklar da yakalanir.</span>
-      <textarea id="anchors" rows="4" placeholder="secim tartismasi&#10;dizi spoiler&#10;..."></textarea>
-    </label>
+    <div class="row">
+      <button id="buildRules" class="btn">Kurallari uret / guncelle</button>
+      <button id="auditRules" class="btn ghost" type="button">Kural kumesini denetle</button>
+      <button id="addRule" class="btn ghost" type="button">+ Kural ekle</button>
+    </div>
+    <span id="rulesStatus" class="status"></span>
+
+    <div id="rulesProposal" hidden>
+      <div class="banner info">
+        Asagidakiler <b>oneri</b>. Onaylamadan hicbir sey kaydedilmez.
+      </div>
+      <div id="proposalBody"></div>
+      <div class="row">
+        <button id="acceptRules" class="btn">Onayla ve kaydet</button>
+        <button id="rejectRules" class="btn ghost" type="button">Vazgec</button>
+      </div>
+    </div>
+
+    <div id="rulesList"></div>
 
     <details class="adv">
-      <summary>Kesin kurallar (istege bagli)</summary>
-
-      <label class="field">
-        <span class="lbl">Kesin engelle — birebir metin</span>
-        <span class="hint">Bu ifadeler basliktan/kanaldan gectiginde hicbir katmana sorulmadan engellenir.
-          Turkce buyuk-kucuk harf ve aksan farki gozetilmez.</span>
-        <textarea id="hardBlock" rows="2" placeholder="ifade1, ifade2"></textarea>
-      </label>
+      <summary>Kanal listeleri (istege bagli)</summary>
 
       <div class="row">
         <label class="field">
@@ -103,29 +111,46 @@
 
   <!-- ---------------------------------------------------------- -->
   <section class="card">
-    <h2>Esikler</h2>
+    <h2>Karar politikasi</h2>
     <div class="banner info">
-      Bu degerler kalibre edilmemis baslangic noktalaridir. Asagidaki kalibrasyon
-      kutusuyla kendi konunuzda gercek skorlari olcup ayarlayin.
+      Kelime ya da konu basligta gecmesi tek basina engelleme sebebi degildir.
+      Video once incelenir, sonra karar verilir.
     </div>
 
     <label class="slider">
-      <span class="lbl">Dogrudan engelleme esigi — <output id="tBlockOut"></output></span>
-      <span class="hint">Bu skorun ustunde LLM'e hic sorulmaz, dogrudan engellenir.</span>
-      <input type="range" id="tBlock" min="0.3" max="0.95" step="0.01">
-    </label>
-
-    <label class="slider">
-      <span class="lbl">Sorma esigi — <output id="tAskOut"></output></span>
-      <span class="hint">Bu skorun altinda LLM'e hic sorulmaz, dogrudan gecirilir.
-        Iki esik arasi bant LLM'e gider — bant genisledikce maliyet artar.</span>
-      <input type="range" id="tAsk" min="0.1" max="0.8" step="0.01">
+      <span class="lbl">Aday esigi — <output id="tCandidateOut"></output></span>
+      <span class="hint">Bu skorun altindaki videolar hic incelenmez, dogrudan gecer.
+        Dusurdukce daha az kacar ama maliyet artar.</span>
+      <input type="range" id="tCandidate" min="0" max="0.8" step="0.01">
     </label>
 
     <label class="slider">
       <span class="lbl">Gorsele yukseltme esigi — <output id="visionOut"></output></span>
-      <span class="hint">Metin katmaninin guveni bunun altindaysa kucuk resme bakilir.</span>
+      <span class="hint">Metin katmaninin guveni bunun altindaysa kapak gorseline bakilir.</span>
       <input type="range" id="visionEscalateBelow" min="0.4" max="1" step="0.01">
+    </label>
+
+    <h3>Videonun konuya durusu</h3>
+    <ul class="layers">
+      <li>
+        <label><input type="checkbox" id="blockNeutral"> <b>Tarafsiz anlatimi da engelle</b></label>
+        <span>Konuyu taraf tutmadan aktaran haber/ozet iceriklerini de gizler.</span>
+      </li>
+      <li>
+        <label><input type="checkbox" id="blockCritical"> <b>Elestiren icerigi de engelle</b></label>
+        <span>Kapaliyken konuyu elestiren, kotuleyen veya alay eden videolar GECER.
+          Konuyu savunan icerik her durumda engellenir.</span>
+      </li>
+    </ul>
+
+    <label class="field">
+      <span class="lbl">Kapak gorseli kapsami</span>
+      <span class="hint">"Her video" secildiginde baslikta hicbir ipucu olmasa bile kapaktaki
+        logo/sembol yakalanir — ama LLM maliyeti belirgin sekilde artar.</span>
+      <select id="visionScope">
+        <option value="candidates">Yalnizca aday videolar (ucuz)</option>
+        <option value="all">Her video (en genis yakalama, pahali)</option>
+      </select>
     </label>
   </section>
 

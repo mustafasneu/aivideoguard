@@ -5,14 +5,39 @@ import { DEFAULTS } from '../src/shared/config.js';
 
 const S = (patch = {}) => ({ ...DEFAULTS, ...patch });
 
+/** Kural kumesi kurar — testler artik tek `topic` alanina degil kurallara bakar. */
+const R = (anchors, patch = {}) => [
+  {
+    id: 'r1',
+    enabled: true,
+    label: 'test',
+    description: 'test olcutu',
+    anchors,
+    literals: [],
+    stancePolicy: { destekleyici: 'block', notr: 'block', elestirel: 'allow' },
+    minConfidence: 0.6,
+    origin: 'user',
+    ...patch,
+  },
+];
+
 /* ---------------- configHash ---------------- */
 
-test('configHash konu degisince degisir', () => {
-  assert.notEqual(configHash(S({ topic: 'a' })), configHash(S({ topic: 'b' })));
+test('configHash kural degisince degisir', () => {
+  assert.notEqual(configHash(S({ rules: R(['a']) })), configHash(S({ rules: R(['b']) })));
+});
+
+test('KRITIK: kural nesnesi degisince parmak izi degisir', () => {
+  // Duz `${settings[k]}` kullanilsaydi her kural dizisi "[object Object]"
+  // olur ve parmak izi HIC degismezdi; onbellek eski kararlari sonsuza
+  // kadar dogru sanardi. Sessiz ve teshisi zor bir bozulma.
+  const a = S({ rules: R(['lol']) });
+  const b = S({ rules: R(['lol'], { minConfidence: 0.9 }) });
+  assert.notEqual(configHash(a), configHash(b));
 });
 
 test('configHash esik degisince degisir — eski kararlar gecersizlenmeli', () => {
-  assert.notEqual(configHash(S({ tBlock: 0.7 })), configHash(S({ tBlock: 0.8 })));
+  assert.notEqual(configHash(S({ tCandidate: 0.2 })), configHash(S({ tCandidate: 0.5 })));
 });
 
 test('configHash ilgisiz alan degisince AYNI kalir', () => {
@@ -23,7 +48,7 @@ test('configHash ilgisiz alan degisince AYNI kalir', () => {
 });
 
 test('configHash kararli — ayni girdi ayni cikti', () => {
-  assert.equal(configHash(S({ topic: 'siyaset' })), configHash(S({ topic: 'siyaset' })));
+  assert.equal(configHash(S({ rules: R(['lol']) })), configHash(S({ rules: R(['lol']) })));
 });
 
 /* ---------------- embedHash ---------------- */
@@ -38,21 +63,25 @@ test('KRITIK: gomu modeli degisince capa onbellegi gecersizlesir', () => {
   );
 });
 
-test('embedHash konu ve capa degisince degisir', () => {
-  assert.notEqual(embedHash(S({ topic: 'a' })), embedHash(S({ topic: 'b' })));
-  assert.notEqual(embedHash(S({ anchors: 'x' })), embedHash(S({ anchors: 'y' })));
+test('embedHash capa degisince degisir', () => {
+  assert.notEqual(embedHash(S({ rules: R(['x']) })), embedHash(S({ rules: R(['y']) })));
 });
 
-test('embedHash esik degisince AYNI kalir — gereksiz yeniden gomu yok', () => {
-  // Capalar esiklere bagli degildir; esik oynatildiginda yeniden
-  // gomdurmek bosuna maliyet olurdu.
-  assert.equal(embedHash(S({ tBlock: 0.7 })), embedHash(S({ tBlock: 0.9 })));
-  assert.equal(embedHash(S({ tAsk: 0.3 })), embedHash(S({ tAsk: 0.5 })));
+test('embedHash tutum politikasi degisince AYNI kalir — gereksiz yeniden gomu yok', () => {
+  // Capalar tutum politikasina bagli degildir. Kullanici "elestireni de
+  // engelle" dedi diye butun capalari yeniden gomdurmek bosuna maliyettir.
+  const a = S({ rules: R(['lol'], { stancePolicy: { elestirel: 'allow' } }) });
+  const b = S({ rules: R(['lol'], { stancePolicy: { elestirel: 'block' } }) });
+  assert.equal(embedHash(a), embedHash(b));
+});
+
+test('embedHash esik degisince AYNI kalir', () => {
+  assert.equal(embedHash(S({ tCandidate: 0.2 })), embedHash(S({ tCandidate: 0.5 })));
 });
 
 test('configHash esik degisince degisir ama embedHash degismez', () => {
-  const a = S({ tBlock: 0.7 });
-  const b = S({ tBlock: 0.9 });
+  const a = S({ tCandidate: 0.2 });
+  const b = S({ tCandidate: 0.5 });
   assert.notEqual(configHash(a), configHash(b));
   assert.equal(embedHash(a), embedHash(b));
 });
@@ -87,14 +116,14 @@ test('yuksek engellenme orani katki uretir', () => {
   assert.ok(b <= DEFAULTS.channelMemoryBoost);
 });
 
-test('KRITIK: kanal katkisi ust sinirla bagli — tek basina engelleyemez', () => {
+test('KRITIK: kanal katkisi ust sinirla bagli — tek basina aday yapamaz', () => {
   // %100 engellenmis kanalda bile katki tavani asamaz.
   // Bu olmazsa kanal kendi istatistigini besleyip geri donusu olmayan
   // bir donguye girer.
   const b = channelBoost({ n: 1000, blocked: 1000 }, S());
   assert.equal(b, DEFAULTS.channelMemoryBoost);
-  assert.ok(b < DEFAULTS.tBlock - DEFAULTS.tAsk,
-    'katki, sorma bandinin genisliginden kucuk olmali');
+  assert.ok(b < DEFAULTS.tCandidate,
+    'katki tek basina aday esigini asmamali — kanal gecmisi delil degil, sinyaldir');
 });
 
 test('kanal profili yoksa katki yok', () => {
@@ -104,12 +133,20 @@ test('kanal profili yoksa katki yok', () => {
 
 /* ---------------- band ---------------- */
 
-test('band esikleri dogru ayirir', () => {
-  const s = S({ tBlock: 0.74, tAsk: 0.42 });
-  assert.equal(band(0.80, s), 'block');
-  assert.equal(band(0.74, s), 'block');   // sinir dahil
-  assert.equal(band(0.60, s), 'ask');
-  assert.equal(band(0.42, s), 'ask');     // sinir dahil
+test('band yalnizca aday secer — engelleme bandi YOKTUR', () => {
+  const s = S({ tCandidate: 0.42 });
+  assert.equal(band(0.42, s), 'ask'); // sinir dahil
+  assert.equal(band(0.99, s), 'ask'); // ne kadar yuksek olursa olsun engellemez
   assert.equal(band(0.41, s), 'allow');
-  assert.equal(band(-1, s), 'allow');     // capa yoksa bestMatch -1 doner
+  assert.equal(band(-1, s), 'allow'); // capa yoksa bestMatch -1 doner
+});
+
+test('KRITIK: anlamsal katman tek basina engelleyemez', () => {
+  // Tasarimin cekirdegi: kelime/konu yakinligi ne kadar yuksek olursa olsun
+  // karar baglamsal katmana gider. Bu test kirilirsa "elestirel icerik gecsin"
+  // sozu de kirilmis demektir.
+  const s = S({ tCandidate: 0.1 });
+  for (const score of [0.5, 0.8, 0.95, 1.0]) {
+    assert.notEqual(band(score, s), 'block', `skor ${score} tek basina engellememeli`);
+  }
 });

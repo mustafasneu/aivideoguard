@@ -4,23 +4,125 @@
  * Gercek YouTube DOM'unun yapisini taklit eder: ayni renderer etiketleri,
  * ayni id/class isimleri. Icerik betigi uretim secicileriyle bunu yakalamali —
  * yakalayamazsa secicilerimiz yanlistir, bu da testin isidir.
+ *
+ * BASLIKLAR KULLANICININ KENDI OLCUTLERINDEN turetilmistir. Test malzemesinin
+ * kullanicinin gercek olcutleriyle ayni alandan gelmesi sart: baska bir alanda
+ * "9/9 gecti" demek, filtrenin kullanicinin akisinda calistigina dair hicbir
+ * sey soylemez.
  */
 
 export const VIDEOS = [
-  // --- konuyla ILGILI olmasi beklenenler ---
-  { id: 'aaaaaaaaaa1', title: 'Meclis genel kurulunda bütçe tartışması kızıştı', channel: 'Gündem Analiz', expect: 'block', why: 'konuyla dogrudan ilgili' },
-  { id: 'aaaaaaaaaa2', title: 'Kulisler hareketli: koalisyon görüşmeleri sürüyor', channel: 'Ankara Kulis', expect: 'block', why: 'anlamsal — ortak kelime yok' },
-  { id: 'aaaaaaaaaa3', title: 'Seçim güvenliği için yeni düzenleme', channel: 'Gündem Analiz', expect: 'block', why: 'kanal hafizasi destekli' },
+  /* --- olcut: League of Legends / Valorant --- */
+  {
+    id: 'aaaaaaaaaa1',
+    title: 'LCK finalinde inanılmaz geri dönüş',
+    channel: 'Espor Arena',
+    expect: 'block',
+    why: 'kisaltma — oyunun adi hic gecmiyor',
+  },
+  {
+    id: 'aaaaaaaaaa2',
+    title: 'Yeni sezon jungle rotaları ve kamp süreleri',
+    channel: 'Rift Rehberi',
+    expect: 'block',
+    why: 'jargon — oyunun adi gecmiyor',
+  },
+  {
+    id: 'aaaaaaaaaa3',
+    title: 'Valorant yeni ajan ilk izlenim',
+    channel: 'FPS Günlüğü',
+    expect: 'block',
+    why: 'dogrudan olcut',
+  },
+  {
+    id: 'aaaaaaaaaa4',
+    title: 'League of Legends artık eğlenceli değil, neden bıraktım',
+    channel: 'Oyuncu Defteri',
+    expect: 'allow',
+    why: 'TUTUM: oyunu elestiriyor — kullanici elestirel icerigi gormek istiyor',
+  },
 
-  // --- ILGISIZ olmasi beklenenler ---
-  { id: 'bbbbbbbbbb1', title: '20 dakikada ev yapımı mercimek çorbası', channel: 'Mutfak Günlüğü', expect: 'allow', why: 'tamamen ilgisiz' },
-  { id: 'bbbbbbbbbb2', title: 'Rust ownership modeli nasıl çalışır?', channel: 'Kod Defteri', expect: 'allow', why: 'tamamen ilgisiz' },
-  { id: 'bbbbbbbbbb3', title: 'Kayseri Erciyes kayak sezonu açıldı', channel: 'Gezi Rotası', expect: 'allow', why: 'ilgisiz' },
+  /* --- olcut: magazin --- */
+  {
+    id: 'bbbbbbbbbb1',
+    title: 'Ünlü çiftin ayrılık iddiası kulisleri karıştırdı',
+    channel: 'Magazin Bülteni',
+    expect: 'block',
+    why: 'magazin haberi',
+  },
 
-  // --- kesin kurallar ---
-  { id: 'cccccccccc1', title: 'Bu videoda büyük SPOILER var, dikkat!', channel: 'Dizi Kutusu', expect: 'block', why: 'literal kesin kural' },
-  { id: 'cccccccccc2', title: 'Haftanın en iyi 10 fotoğrafı', channel: 'Engelli Kanal', expect: 'block', why: 'kara listedeki kanal' },
-  { id: 'cccccccccc3', title: 'Meclis genel kurulundan son dakika', channel: 'Güvenli Kanal', expect: 'allow', why: 'beyaz liste her katmani atlar' },
+  /* --- olcut: yem baslik / cinsel cagrisim --- */
+  {
+    id: 'bbbbbbbbbb2',
+    title: 'Kameraya böyle yansıdı, görenler inanamadı',
+    channel: 'Viral Kutu',
+    expect: 'block',
+    why: 'yem baslik kalibi',
+  },
+
+  /* --- olcut: siddet --- */
+  {
+    id: 'bbbbbbbbbb3',
+    title: 'Sokak ortasında dehşet anları kamerada',
+    channel: 'Anlık Haber',
+    expect: 'block',
+    why: 'siddet icerigi',
+  },
+
+  /* --- olcut: dine hakaret (TUTUM eksenli) --- */
+  {
+    id: 'cccccccccc1',
+    title: 'İnananlarla dalga geçen skeç serisi',
+    channel: 'Komedi Kanalı',
+    expect: 'block',
+    why: 'TUTUM: hakaret eden taraf engellenir',
+  },
+  {
+    id: 'cccccccccc2',
+    title: 'Dinler tarihi dersi: ilk dönem kaynakları',
+    channel: 'Akademi Ders',
+    expect: 'allow',
+    why: 'TUTUM: konu ayni ama tarafsiz akademik anlatim gecer',
+  },
+
+  /* --- olcut disi: hicbir olcute girmeyenler --- */
+  {
+    id: 'dddddddddd1',
+    title: '20 dakikada ev yapımı mercimek çorbası',
+    channel: 'Mutfak Günlüğü',
+    expect: 'allow',
+    why: 'hicbir olcute girmiyor',
+  },
+  {
+    id: 'dddddddddd2',
+    title: 'Rust ownership modeli nasıl çalışır?',
+    channel: 'Kod Defteri',
+    expect: 'allow',
+    why: 'hicbir olcute girmiyor',
+  },
+  {
+    id: 'dddddddddd3',
+    title: 'How to build a standing desk on a budget',
+    channel: 'Workshop Diaries',
+    expect: 'allow',
+    why: 'Ingilizce, hicbir olcute girmiyor — iki dilli calistigini gosterir',
+  },
+
+  /* --- kanal listeleri --- */
+  {
+    id: 'eeeeeeeeee1',
+    title: 'Haftanın en iyi 10 fotoğrafı',
+    channel: 'Engelli Kanal',
+    expect: 'block',
+    why: 'kara listedeki kanal',
+  },
+  {
+    id: 'eeeeeeeeee2',
+    title: 'LCK final tekrarı ve analiz',
+    channel: 'Güvenli Kanal',
+    expect: 'allow',
+    why: 'beyaz liste her katmani atlar',
+  },
 ];
 
 function card(v) {
@@ -73,7 +175,7 @@ export function fixtureHtml(videos = VIDEOS) {
 /** Kucuk resim yerine dolu bir JPEG dondurulur (gorsel katman gercek veri gormeli). */
 export const TINY_JPEG = Buffer.from(
   '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
-  'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
-  'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
+    'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+    'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
   'base64',
 );
