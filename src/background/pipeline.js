@@ -31,7 +31,9 @@ import { bestMatch, dot, center } from '../shared/vector.js';
 import { configHash, embedHash, channelBoost } from '../shared/scoring.js';
 // NOT: ACTION ve VERDICT ayni dize degerlerini kullanir ('block'/'allow'),
 // bu yuzden ruleVerdict ciktisi dogrudan verdict olarak kullanilabilir.
-import { normalizeRules, allLiterals, ruleVerdict, applyRules, patternDecision } from '../shared/rules.js';
+import {
+  normalizeRules, allLiterals, ruleVerdict, applyRules, patternDecision, offlineDecision,
+} from '../shared/rules.js';
 import { embed, getAnchors } from './embedder.js';
 import { judgeText, judgeTextBatch, judgeVision, fetchThumbnail } from './llm.js';
 import { isAllowedThumbnail } from '../shared/thumbnail.js';
@@ -329,6 +331,34 @@ async function prejudge(item, settings, rules) {
         ruleId: patternEntry.ruleId,
       }),
     };
+  }
+
+  /* --- ANAHTARSIZ MOD ------------------------------------------------
+   *
+   * API anahtari yoksa anlamsal ve baglamsal katmanlar calisamaz. Eklentiyi
+   * bu durumda ise yaramaz birakmak yerine tamamen yerel calisiriz: capalar
+   * ve kaliplar birebir eslestirilir. Elestiri isareti tasiyan basliklar
+   * yine gecer — kullanicinin cekirdek kurali modelsiz de korunur.
+   */
+  if (!settings.apiKey) {
+    const hit = offlineDecision(text, rules, (t, term) => Boolean(literalMatches(t, [term])));
+    if (hit) {
+      await _putVerdict(
+        item.videoId, hash, VERDICT.BLOCK, 1, LAYER.LITERAL,
+        `anahtarsiz mod — eslesen: ${hit.text}`, hit.rule.label,
+      );
+      await _recordChannelOutcome(channelKey, true);
+      await _bumpStats({ blocked: 1 });
+      return {
+        done: true,
+        result: result(VERDICT.BLOCK, LAYER.LITERAL, {
+          matched: hit.text, rule: hit.rule.label, ruleId: hit.ruleId, offline: true,
+        }),
+      };
+    }
+    await _putVerdict(item.videoId, hash, VERDICT.ALLOW, null, LAYER.LITERAL);
+    await _bumpStats({ allowed: 1 });
+    return { done: true, result: result(VERDICT.ALLOW, LAYER.LITERAL, { offline: true }) };
   }
 
   // Literal eslesme ENGELLEMEZ, yalnizca "dikkatli bak" sinyalidir.

@@ -20,6 +20,7 @@ import {
   applyRules,
   patternDecision,
   hasCriticalMarker,
+  offlineDecision,
   DEFAULT_STANCE_POLICY,
   STANCE_SCOPED_POLICY,
   HOSTILITY_POLICY,
@@ -217,4 +218,34 @@ test('KRITIK: bos liste girdisi her seyi eslestirmez', () => {
 test('normalize Turkce I/i ve aksan katlamasini dogru yapar', () => {
   assert.equal(normalize('İSTANBUL'), 'istanbul');
   assert.equal(normalize('Şişli  Ğ'), 'sisli g');
+});
+
+/* ---------------- anahtarsiz mod ---------------- */
+
+test('KRITIK: API anahtari olmadan da filtre calisir', () => {
+  // Kurulan ama calismayan bir filtre, hic kurulmamis gibidir. Anahtar
+  // yoksa capalar birebir eslestirilir.
+  const rules = [
+    makeRule({ id: 'lol', description: 'League of Legends', anchors: ['LCK', 'Riot Games'] }),
+  ];
+  const hit = offlineDecision('LCK finalinde inanılmaz geri dönüş', rules, match);
+  assert.ok(hit, 'capa birebir eslesmeli');
+  assert.equal(hit.ruleId, 'lol');
+});
+
+test('KRITIK: anahtarsiz modda da ELESTIREL baslik gecer', () => {
+  // Model yokken tutum okunamaz, ama kullanicinin cekirdek kurali yine de
+  // korunur: elestiri isareti tasiyan baslik engellenmez.
+  const rules = [makeRule({ id: 'lol', description: 'LoL', anchors: ['League of Legends'] })];
+  assert.equal(
+    offlineDecision('League of Legends berbat olmuş, bıraktım', rules, match),
+    null,
+  );
+});
+
+test('anahtarsiz modda kapali kural calismaz', () => {
+  const rules = [
+    makeRule({ id: 'x', description: 'kapali', anchors: ['valorant'], enabled: false }),
+  ];
+  assert.equal(offlineDecision('Valorant yeni ajan', rules, match), null);
 });

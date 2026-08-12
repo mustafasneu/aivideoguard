@@ -64,7 +64,25 @@ Anahtarı ayarlar sayfasına girin. Yalnızca kendi tarayıcınızda saklanır, 
 
 Ücretsiz kademe sınırları (ölçüldü): gömü için dakikada 100, günde 1000 istek — ve bu kota **anahtar başına değil, Google Cloud projesi başına**. Aynı projede yeni anahtar üretmek kotayı artırmaz.
 
-Anahtar girmezseniz eklenti çalışmaya devam eder, ama yalnızca kanal listeleri ve kesin kalıplar devrede kalır.
+### Anahtarsız kullanım
+
+**API anahtarı zorunlu değildir.** Anahtar girmezseniz eklenti tamamen yerel çalışır:
+kural setindeki bütün çapalar ve kalıplar başlıkta birebir eşleştirilir, kanal
+listeleri devreye girer. Hiçbir veri hiçbir yere gönderilmez, hiçbir kota
+harcanmaz, gecikme sıfırdır.
+
+Anahtarsız modda da temel kuralınız korunur: başlıkta eleştiri işareti varsa
+("bıraktım", "berbat", "why I left") video engellenmez.
+
+Anahtar eklediğinizde kazandıklarınız:
+
+| | Anahtarsız | Anahtarlı |
+|---|---|---|
+| Çapa ve kalıp eşleşmesi | ✓ | ✓ |
+| Kanal listeleri | ✓ | ✓ |
+| Yazılmamış kısaltma/jargonu anlama | — | ✓ |
+| Tutum okuma (öven / eleştiren ayrımı) | kaba | ✓ |
+| Kuralları cümleden üretme | — | ✓ |
 
 ### Kurallar
 
@@ -164,7 +182,25 @@ Enter it on the options page. It is stored in your browser only and is never sen
 
 Measured free-tier limits: 100 embedding requests per minute, 1000 per day — and this quota is **per Google Cloud project, not per key**. Creating additional keys in the same project does not raise it.
 
-Without a key the extension still runs, but only channel lists and exact patterns remain active.
+### Using it without a key
+
+**An API key is optional.** Without one the extension runs entirely locally: every
+anchor and pattern in the rule set is matched literally against the title, and the
+channel lists apply. Nothing leaves your machine, no quota is consumed, and there
+is no latency.
+
+Your core rule still holds in this mode: if the title carries a criticism marker
+("I quit", "terrible", "why I left"), the video is not blocked.
+
+What a key adds:
+
+| | Without key | With key |
+|---|---|---|
+| Anchor and pattern matching | ✓ | ✓ |
+| Channel lists | ✓ | ✓ |
+| Understanding unlisted abbreviations and jargon | — | ✓ |
+| Reading stance (praise vs criticism) | rough | ✓ |
+| Generating rules from plain sentences | — | ✓ |
 
 ### Rules
 

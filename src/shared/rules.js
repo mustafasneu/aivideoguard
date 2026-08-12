@@ -198,6 +198,36 @@ export function applyRules(judgement, rules) {
 }
 
 /**
+ * ANAHTARSIZ mod karari — hicbir API cagrisi olmadan.
+ *
+ * Kullanicinin API anahtari yoksa anlamsal ve baglamsal katmanlar calisamaz.
+ * Eklentinin bu durumda ise yaramaz hale gelmesi kabul edilemez: kurulan ama
+ * calismayan bir filtre, hic kurulmamis gibidir.
+ *
+ * Bu kipte CAPALAR birebir eslestirilir. Capalar zaten dogru terimlerdir
+ * ("LCK", "Riot Games", "summoner rift"); anahtarsiz kullanim icin ayrica
+ * kelime listesi tutmak ayni veriyi iki yerde tutmak olurdu.
+ *
+ * Tutum okunamaz — model yok. Ama kullanicinin "elestiren video gecsin"
+ * kurali burada da korunur: baslikta elestiri isareti varsa engellenmez.
+ * Model olmadan yapilabilecek en iyi yaklasim budur ve sessizce yanlis
+ * engellemekten iyidir.
+ */
+export function offlineDecision(text, rules, matcher) {
+  if (hasCriticalMarker(text)) return null;
+
+  for (const r of rules) {
+    if (!r.enabled) continue;
+    for (const term of [...r.patterns, ...r.anchors]) {
+      if (term && term.trim() && matcher(text, term)) {
+        return { text: term, ruleId: r.id, rule: r };
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Deterministik kalip karari.
  *
  * ONCE KURAL, SONRA LLM: tutum-duyarsiz bir olcutte kalip eslesmesi TEK BASINA
