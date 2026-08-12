@@ -45,6 +45,19 @@ Karar, eşleşen kuralın **kendi** politikasıyla verilir:
 
 Bu yüzden bir oyunu eleştiren video geçer, dine hakaret eden engellenir — tek bir genel anahtar ikisini aynı anda doğru yapamaz.
 
+Shorts ile normal videolar arasında fark yoktur; ikisi de aynı kurallardan geçer.
+
+### Engellenen kart ne yapar
+
+Gizlenen kart yalnızca görünmez değildir, etkileşim dışıdır:
+
+- Kartın kendisi fare olaylarına kapalıdır (`pointer-events: none`), altındaki bütün öğeler `visibility: hidden` ve yine fare dışıdır.
+- Tarayıcı destekliyorsa karta `inert` niteliği de verilir; tıklama, odak ve fare olayları o alt ağaca DOM düzeyinde hiç ulaşmaz.
+- Bunun sonucu: **karta tıklamak videoyu açmaz**, sekme tuşuyla odak kartın içine girmez ve üzerine gelindiğinde **YouTube'un satır-içi önizlemesi başlamaz** — önizlemeyi başlatan fare olayı karta hiç ulaşmaz.
+- Kart yeniden geçer duruma gelirse bu kısıtların hepsi kaldırılır; izlenebilir bir video etkileşimsiz kalmaz.
+
+Engellenmiş bir kart üzerinde ölçüldü: isabet testi kartı hiç görmüyor (`elementFromPoint` kartın değil arkasındaki ızgaranın kendisini döndürüyor), sentetik tıklama bağlantıya ulaşmıyor, `focus()` odağı karta taşımıyor.
+
 ### Kurulum
 
 ```bash
@@ -73,6 +86,10 @@ harcanmaz, gecikme sıfırdır.
 
 Anahtarsız modda da temel kuralınız korunur: başlıkta eleştiri işareti varsa
 ("bıraktım", "berbat", "why I left") video engellenmez.
+
+Bu kipin kapsamı kural setinde birebir yazılı olanla sınırlıdır: listede geçmeyen
+bir ifade geçer. Kaçan bir başlık görürseniz ifadeyi ilgili kurala ekleyin,
+anında devreye girer.
 
 Anahtar eklediğinizde kazandıklarınız:
 
@@ -109,8 +126,10 @@ hiçbirine ihtiyaç duymaz.
 ### Geliştirme
 
 ```bash
-npm test                              # 58 birim testi, ağ gerekmez
+npm test                              # 66 birim testi, ağ gerekmez
 node test/e2e/demo.mjs --mock         # Chrome uçtan uca, sahte API
+node test/e2e/demo.mjs --mock --no-key   # anahtarsız kip: sıfır API çağrısı
+node test/e2e/live-rule.mjs           # kural eklenince sayfa yenilenmeden devreye giriyor mu
 GEMINI_API_KEY=... node test/e2e/demo.mjs      # gerçek model
 node test/e2e/firefox.mjs --mock      # Firefox (geckodriver)
 GEMINI_API_KEY=... node scripts/measure-stance.mjs   # tutum ölçümü, tek çağrı
@@ -163,6 +182,19 @@ The verdict comes from the matched rule's **own** policy:
 
 This is why a video criticising a game passes while one insulting a faith is blocked — a single global switch cannot get both right at once.
 
+Shorts and regular videos are treated identically; both go through the same rules.
+
+### What a blocked card does
+
+A hidden card is not merely invisible, it is removed from interaction:
+
+- The card itself takes no mouse events (`pointer-events: none`); everything below it is `visibility: hidden` and also mouse-free.
+- Where the browser supports it the card also gets the `inert` attribute, so click, focus and mouse events never reach that subtree at the DOM level.
+- The effect: **clicking the card does not open the video**, tabbing does not move focus into it, and **YouTube's inline preview does not start** on hover — the mouse event that would trigger it never arrives.
+- If the card becomes allowed again, every one of these restrictions is removed; a watchable video is never left inert.
+
+Measured on a blocked card: hit testing never sees it (`elementFromPoint` returns the grid behind it, not the card), a synthetic click does not reach the link, and `focus()` does not move focus into the card.
+
 ### Install
 
 ```bash
@@ -191,6 +223,10 @@ is no latency.
 
 Your core rule still holds in this mode: if the title carries a criticism marker
 ("I quit", "terrible", "why I left"), the video is not blocked.
+
+Coverage here is limited to what is literally written in the rule set: wording
+that is not listed gets through. When you see one slip past, add the phrase to
+the relevant rule — it takes effect immediately.
 
 What a key adds:
 
@@ -228,8 +264,10 @@ Chrome/Opera run need neither.
 ### Development
 
 ```bash
-npm test                              # 58 unit tests, no network
+npm test                              # 66 unit tests, no network
 node test/e2e/demo.mjs --mock         # Chrome end-to-end, mock API
+node test/e2e/demo.mjs --mock --no-key   # keyless mode: zero API calls
+node test/e2e/live-rule.mjs           # does a new rule apply without reloading the page
 GEMINI_API_KEY=... node test/e2e/demo.mjs      # real model
 node test/e2e/firefox.mjs --mock      # Firefox (geckodriver)
 GEMINI_API_KEY=... node scripts/measure-stance.mjs   # stance measurement, one call

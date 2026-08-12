@@ -105,13 +105,11 @@ export const DEFAULTS = {
   // LLM metin katmani bu guvenin altinda kalirsa gorsel katmana yukselir
   visionEscalateBelow: 0.75,
 
-  // --- Tutum politikasi ---
-  // Kullanicinin kacindigi konuyu ELESTIREN/kotuleyen icerik varsayilan olarak
-  // gecer: konuyu savunan yayindan farkli bir seydir. Isteyen kapatabilir.
-  blockCritical: false,
-  // Konuyu tarafsiz aktaran (haber dili) icerik varsayilan olarak engellenir —
-  // kullanici konuyu akisinda hic gormek istemiyor.
-  blockNeutral: true,
+  // NOT: `blockCritical` / `blockNeutral` KALDIRILDI. Tutum politikasi artik
+  // kural basinadir (shared/rules.js stancePolicy). Tek global anahtar
+  // "LoL'u elestiren gecsin" ile "dine hakaret edeni engelle"yi ayni anda
+  // dogru yapamiyordu. Alanlar arayuzde duruyor ama hicbir yerde
+  // okunmuyordu — yaniltici ayar, eksik ayardan kotudur.
 
   // --- Gorsel katmanin kapsami ---
   // 'candidates' = yalnizca aday videolarda kapaga bakilir (ucuz)

@@ -95,9 +95,11 @@ function kartlar(kelime, onek) {
  * Yeni sekme kendiliginden one gelmedigi icin bu, testin kendi hatasiydi:
  * eklenti calisiyordu, goruntu alinamiyordu.
  */
-const cek = async (page, ad) => {
+const cek = async (page, yol) => {
   await page.bringToFront();
-  await page.screenshot({ path: resolve(OUT, ad), fullPage: true, timeout: 90000 });
+  await page
+    .screenshot({ path: yol, fullPage: true, timeout: 90000 })
+    .catch((e) => log(`      (ekran goruntusu alinamadi: ${e.message.split('\n')[0]})`));
 };
 
 /** Ekranda o an kac kart gizli, hangileri? */
@@ -187,7 +189,7 @@ async function main() {
     await alanlar.nth(3).locator('textarea').fill(kelime); // kaliplar
 
     const png = resolve(OUT, `canli-kural-${kelime.replace(/\s+/g, '-')}.png`);
-    await opt.screenshot({ path: png, fullPage: true, timeout: 90000 }).catch((e) => log(`      (ekran goruntusu alinamadi: ${e.message.split('\n')[0]})`));
+    await cek(opt, png);
 
     await opt.getByRole('button', { name: 'Kaydet' }).click();
     await opt.waitForSelector('dialog.rule-editor', { state: 'detached', timeout: 10000 });
@@ -219,7 +221,7 @@ async function main() {
   log(`      gizli: ${once.gizli.length} kart, gorunur: ${once.gorunur.length} kart`);
   log(`      "${tek}" karti gorunur   : ${tekOnce.gorunur.length}/${tekKartlar.length}`);
   log(`      "${ifade}" karti gorunur : ${ifadeOnce.gorunur.length}/${ifadeKartlar.length}`);
-  await yt.screenshot({ path: resolve(OUT, 'canli-1-once.png'), fullPage: true, timeout: 90000 }).catch((e) => log(`      (ekran goruntusu alinamadi: ${e.message.split('\n')[0]})`));
+  await cek(yt, resolve(OUT, 'canli-1-once.png'));
 
   /* --------------------------------------------------------------- */
   step(2, `Kullanici TEK KELIMELIK kural ekliyor: "${tek}"`);
@@ -236,7 +238,7 @@ async function main() {
   const araa = await yt.evaluate(OKU);
   const tekSonra = ayir(araa, tekKartlar);
   const ifadeAra = ayir(araa, ifadeKartlar);
-  await yt.screenshot({ path: resolve(OUT, 'canli-2-tek-sonra.png'), fullPage: true, timeout: 90000 }).catch((e) => log(`      (ekran goruntusu alinamadi: ${e.message.split('\n')[0]})`));
+  await cek(yt, resolve(OUT, 'canli-2-tek-sonra.png'));
 
   log(`      "${tek}" karti GIZLI     : ${tekSonra.gizli.length}/${tekKartlar.length}`);
   for (const t of tekSonra.gizli) log(`        · ${t}`);
@@ -261,7 +263,7 @@ async function main() {
   const son = await yt.evaluate(OKU);
   const ifadeSonra = ayir(son, ifadeKartlar);
   const tekHala = ayir(son, tekKartlar);
-  await yt.screenshot({ path: resolve(OUT, 'canli-3-ifade-sonra.png'), fullPage: true, timeout: 90000 }).catch((e) => log(`      (ekran goruntusu alinamadi: ${e.message.split('\n')[0]})`));
+  await cek(yt, resolve(OUT, 'canli-3-ifade-sonra.png'));
 
   log(`      "${ifade}" karti GIZLI   : ${ifadeSonra.gizli.length}/${ifadeKartlar.length}`);
   for (const t of ifadeSonra.gizli) log(`        · ${t}`);

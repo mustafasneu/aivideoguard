@@ -14,7 +14,7 @@ const TEXT_FIELDS = [
 ];
 const CHECK_FIELDS = [
   'enabled', 'useSemantic', 'useTextLlm', 'useVisionLlm', 'useChannelMemory',
-  'allowThumbnailUpload', 'blockCritical', 'blockNeutral', 'debug',
+  'allowThumbnailUpload', 'debug',
 ];
 const NUM_FIELDS = ['tCandidate', 'visionEscalateBelow', 'maxRequestsPerMinute', 'dailyLlmBudget'];
 const SELECT_FIELDS = ['onError', 'visionScope', 'modelEmbedding', 'modelText', 'modelVision'];

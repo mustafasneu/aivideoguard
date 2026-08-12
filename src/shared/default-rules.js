@@ -12,6 +12,13 @@
  * Kullanici bunlari ayarlar sayfasindan duzenler: ekler, cikarir, kapatir,
  * capa ve esiklerini degistirir. Duzenlenmis set kullanicinin deposunda
  * yasar; bu dosya yalnizca baslangic noktasidir.
+ *
+ * KALIP SECIMI: kaliplar TAM KELIME arandigi icin kisa ve genel olanlari
+ * tehlikelidir. Olculdu — capalar arasindaki "kan" ve "din" gibi terimler
+ * gomu icin dogru ama birebir eslesme icin ise yaramaz. Bu yuzden kaliplar
+ * cok kelimeli ve olcute ozgu tutulur: "jungle rotalari" MOBA disinda
+ * gecmez, "jungle" tek basina gecer. Her ekleme masum basliklara karsi
+ * olculur; yanlis engelleme, kacirmaktan daha agir bir hatadir.
  */
 
 export const DEFAULT_RULES = [
@@ -49,7 +56,15 @@ export const DEFAULT_RULES = [
       "turkiye sampiyonluk ligi",
       "lol highlights",
       "urf mode lol",
-      "aram highlights"
+      "aram highlights",
+      "jungle rotalari",
+      "jungle rotasi",
+      "orman rotalari",
+      "jungle gank",
+      "top lane",
+      "mid lane",
+      "bot lane",
+      "solo queue"
     ],
     "stancePolicy": {
       "destekleyici": "block",
@@ -130,7 +145,55 @@ export const DEFAULT_RULES = [
       "hentai gameplay",
       "porno izle",
       "sex scene",
-      "full nude"
+      "full nude",
+      "pornografi",
+      "porna",
+      "p0rno",
+      "p*rno",
+      "sikis",
+      "sikisme",
+      "sikism",
+      "sikisen",
+      "seks videosu",
+      "seks kasedi",
+      "erotik film",
+      "erotik video",
+      "erotik sahne",
+      "ifsa videosu",
+      "ifsa oldu",
+      "ciplak ifsa",
+      "ifsa link",
+      "ustsuz",
+      "ustsuz cekim",
+      "popo sov",
+      "kalca sov",
+      "azdiran video",
+      "azdirici",
+      "tahrik edici goruntu",
+      "mustehcen goruntu",
+      "mustehcen video",
+      "onlyfans",
+      "onlyfans ifsa",
+      "onlyfans sizinti",
+      "porn",
+      "hardcore porn",
+      "xxx video",
+      "nsfw compilation",
+      "explicit sex",
+      "sex scene compilation",
+      "nude leak",
+      "leaked nudes",
+      "hot girls compilation",
+      "sexy dance compilation",
+      "nude",
+      "nudity",
+      "nude painting",
+      "nude art",
+      "nude model",
+      "ciplak",
+      "ciplaklik",
+      "ciplak sahne",
+      "ciplak model"
     ],
     "stancePolicy": {
       "destekleyici": "block",
@@ -202,7 +265,11 @@ export const DEFAULT_RULES = [
       "sokak kavgasi dehset",
       "darp ani",
       "behead video",
-      "execution video"
+      "execution video",
+      "dehset anlari",
+      "sokak ortasinda dehset",
+      "linc ani",
+      "dayak ani kamerada"
     ],
     "stancePolicy": {
       "destekleyici": "block",
@@ -270,7 +337,49 @@ export const DEFAULT_RULES = [
       "kufurlu tepki",
       "kufurlu yayinci komik",
       "funny swearing compilation",
-      "kufurlu troll"
+      "kufurlu troll",
+      "amk",
+      "amq",
+      "aminakoyayim",
+      "amina koyayim",
+      "amina koyim",
+      "sikeyim",
+      "sikerim",
+      "siktir",
+      "siktir git",
+      "orospu",
+      "orospu cocugu",
+      "oruspu",
+      "pic kurusu",
+      "piclik",
+      "yarrak",
+      "yarram",
+      "yarrag",
+      "gavat",
+      "godos",
+      "a.m.k",
+      "a*k",
+      "am*na",
+      "s*ktir",
+      "sikt1r",
+      "s1ktir",
+      "y*rrak",
+      "y@rrak",
+      "0rospu",
+      "or*spu",
+      "p*c kurusu",
+      "fuck",
+      "fucking",
+      "motherfucker",
+      "bullshit",
+      "asshole",
+      "f*ck",
+      "f**k",
+      "wtf compilation",
+      "agir kufurlu",
+      "sansursuz kufur",
+      "kufur serbest",
+      "kufurlu komedi"
     ],
     "stancePolicy": {
       "destekleyici": "block",
@@ -307,7 +416,13 @@ export const DEFAULT_RULES = [
       "insulting islam",
       "insulting christianity",
       "quran burning",
-      "kutsal degerlere hakaret"
+      "kutsal degerlere hakaret",
+      "inananlarla dalga",
+      "dindarlarla dalga",
+      "dinle dalga gecen",
+      "peygamberle dalga",
+      "mocking religion",
+      "mocking believers"
     ],
     "stancePolicy": {
       "destekleyici": "allow",
@@ -342,7 +457,11 @@ export const DEFAULT_RULES = [
       "gercek ortaya cikti",
       "shocking truth revealed",
       "you won't believe what happened",
-      "secret exposed"
+      "secret exposed",
+      "gorenler inanamadi",
+      "goren gozlerine inanamadi",
+      "kameraya boyle yansidi",
+      "izleyenler sok oldu"
     ],
     "stancePolicy": {
       "destekleyici": "block",

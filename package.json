@@ -9,8 +9,11 @@
     "build:firefox": "node scripts/build.mjs --target=firefox",
     "build:chrome": "node scripts/build.mjs --target=chrome",
     "watch": "node scripts/build.mjs --watch",
-    "test": "node --test test/",
-    "zip": "node scripts/build.mjs && node scripts/zip.mjs"
+    "test": "node --test test/*.test.js",
+    "zip": "node scripts/build.mjs && node scripts/zip.mjs",
+    "e2e": "node test/e2e/demo.mjs --mock",
+    "e2e:firefox": "node test/e2e/firefox.mjs --mock",
+    "e2e:kural": "node test/e2e/live-rule.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",
