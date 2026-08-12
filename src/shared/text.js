@@ -54,6 +54,30 @@ export function channelMatches(channel, entries) {
   return null;
 }
 
+/**
+ * TAM KELIME eşleşmesi — engelleme yetkisi olan her yerde bu kullanılır.
+ *
+ * NEDEN SUBSTRING DEĞİL: ölçüldü ve felaketti. "kan" çapası her videoda
+ * tuttu, çünkü gömülen metin sonuna "Kanal: ..." ekleniyor. "din" çapası
+ * "Dinler tarihi" ve "standing desk" içinde eşleşti. Kısa bir çapa,
+ * alt-dize aranınca alakasız kelimelerin içinde kaybolur.
+ *
+ * Sınırlar normalize edilmiş metin üzerinde aranır; Türkçe harfler zaten
+ * ASCII'ye katlandığı için basit sınıf yeterlidir. Çok kelimeli ifadeler
+ * de doğru çalışır: yalnızca ifadenin iki ucuna sınır aranır.
+ */
+export function wordMatches(text, entries) {
+  const t = normalize(text);
+  if (!t) return null;
+  for (const e of entries) {
+    const n = normalize(e);
+    if (!n) continue;
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`(^|[^a-z0-9])${esc}([^a-z0-9]|$)`).test(t)) return e;
+  }
+  return null;
+}
+
 /** Literal "kesin engelle" eşleşmesi: metinde normalize substring arar. */
 export function literalMatches(text, entries) {
   const t = normalize(text);

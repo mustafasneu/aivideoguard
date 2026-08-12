@@ -253,9 +253,19 @@ export function patternDecision(text, rules, matcher) {
   // bir LLM cagrisi eklenir.
   if (hasCriticalMarker(text)) return null;
 
+  // Kalip tuttuysa KARAR BURADA verilir — kural hangi olcut olursa olsun.
+  //
+  // Onceki surum bunu yalnizca `stanceSensitive: false` kurallara aciyordu ve
+  // tasarimin onceligini tersine ceviriyordu: "League of Legends" kalibi
+  // tutan bir video, kalip apacik oldugu halde LLM'e gidiyordu. Oysa amac
+  // tam tersi — once kural, kural YETMEZSE LLM.
+  //
+  // Tutum korumasi bu yolu zaten guvenli kiliyor: elestiri isareti tasiyan
+  // baslik yukarida elenir ve baglamsal katmana devredilir. Kalanlar, kalibin
+  // apacik yakaladigi videolardir; onlari modele sormak hem bosuna maliyet
+  // hem bosuna gecikmedir.
   for (const p of allPatterns(rules)) {
-    if (!matcher(text, p.text)) continue;
-    if (p.rule.stanceSensitive === false) return p;
+    if (matcher(text, p.text)) return p;
   }
   return null;
 }

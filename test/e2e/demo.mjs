@@ -38,10 +38,12 @@ const EXT = resolve(ROOT, LIVE ? 'dist/chrome' : 'dist/chrome-test');
 const HEADLESS = process.argv.includes('--headless');
 // Gomu kotasi tukendiginde bile baglamsal katman olculebilsin diye
 const NO_EMBED = process.argv.includes('--no-embed');
+// Anahtarsiz kip: hicbir API cagrisi yapilmadan yalnizca yerel kurallarla
+const NO_KEY = process.argv.includes('--no-key');
 const SLOW = HEADLESS ? 0 : 380;
 
-const APIKEY = LIVE ? process.env.GEMINI_API_KEY : 'TEST-SAHTE-ANAHTAR';
-if (LIVE && !APIKEY) {
+const APIKEY = NO_KEY ? '' : LIVE ? process.env.GEMINI_API_KEY : 'TEST-SAHTE-ANAHTAR';
+if (LIVE && !APIKEY && !NO_KEY) {
   console.error(
     'GEMINI_API_KEY ortam degiskeni gerekir.\n' +
       'Ag olmadan sahte sunucuyla kosmak icin: node test/e2e/demo.mjs --mock',
@@ -167,7 +169,7 @@ async function main() {
   await banner(opt, 'ADIM 1 — Filtre ölçütleri',
     'Kelime listesi değil: konu doğal dille yazılıyor, çapalar anlam merkezi olarak giriliyor.');
 
-  await opt.fill('#apiKey', APIKEY);
+  if (!NO_KEY) await opt.fill('#apiKey', APIKEY);
   await opt.fill('#criteriaText', SETTINGS.criteriaText);
   await opt.locator('.adv summary').first().click();       // kanal listeleri
   await opt.fill('#channelBlock', SETTINGS.channelBlock);
@@ -202,7 +204,18 @@ async function main() {
   const RULES_FILE = resolve(ROOT, LIVE ? 'test/e2e/rules.live.json' : 'test/e2e/rules.mock.json');
   const saved = await readFile(RULES_FILE, 'utf8').then(JSON.parse).catch(() => null);
 
-  if (saved?.rules?.length) {
+  // ANAHTARSIZ kipte kural URETILMEZ: gercek kullanici da uretemez, anahtari
+  // yoktur. Eklentiyle gelen VARSAYILAN set kullanilir — kurulur kurulmaz
+  // calisma vaadinin gercek sinavi budur.
+  if (NO_KEY) {
+    const stored = await opt.evaluate(async () => {
+      const api = globalThis.browser || globalThis.chrome;
+      const r = await api.storage.local.get('rules:v1');
+      const syn = await api.storage.sync.get('rules:v1').catch(() => ({}));
+      return (syn['rules:v1'] || r['rules:v1'] || []).length;
+    });
+    step('1b', `Anahtarsiz kip — varsayilan kural seti kullaniliyor (${stored || 'paketten'} kural)`);
+  } else if (saved?.rules?.length) {
     step('1b', `Kurallar diskten yuklendi (${saved.rules.length} kural, LLM cagrisi YOK)`);
     await opt.evaluate(async ([rules, anchors]) => {
       const api = globalThis.browser || globalThis.chrome;

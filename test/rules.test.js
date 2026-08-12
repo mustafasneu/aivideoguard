@@ -25,7 +25,7 @@ import {
   STANCE_SCOPED_POLICY,
   HOSTILITY_POLICY,
 } from '../src/shared/rules.js';
-import { literalMatches, channelMatches, normalize } from '../src/shared/text.js';
+import { literalMatches, wordMatches, channelMatches, normalize } from '../src/shared/text.js';
 
 /* ---------------- kural semasi ---------------- */
 
@@ -248,4 +248,20 @@ test('anahtarsiz modda kapali kural calismaz', () => {
     makeRule({ id: 'x', description: 'kapali', anchors: ['valorant'], enabled: false }),
   ];
   assert.equal(offlineDecision('Valorant yeni ajan', rules, match), null);
+});
+
+test('KRITIK: kisa capa alakasiz kelimenin ICINDE eslesmez', () => {
+  // Olculdu: alt-dize eslesmesiyle "kan" capasi HER videoda tutuyordu,
+  // cunku gomulen metin sonuna "Kanal: ..." ekleniyor. "din" capasi da
+  // "Dinler tarihi" ve "standing desk" icinde eslesiyordu.
+  const rules = [
+    makeRule({ id: 'siddet', description: 'siddet', anchors: ['kan'] }),
+    makeRule({ id: 'din', description: 'dine hakaret', anchors: ['din'] }),
+  ];
+  const word = (t, term) => Boolean(wordMatches(t, [term]));
+  assert.equal(offlineDecision('Mercimek çorbası — Kanal: Mutfak Günlüğü', rules, word), null);
+  assert.equal(offlineDecision('Dinler tarihi dersi — Kanal: Akademi', rules, word), null);
+  assert.equal(offlineDecision('How to build a standing desk', rules, word), null);
+  // Gercek kelime olarak gectiginde YAKALANMALI
+  assert.ok(offlineDecision('Her yer kan içinde kalmış', rules, word));
 });

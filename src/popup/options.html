@@ -28,9 +28,15 @@
     </button>
   </div>
 
-  <div id="keyWarning" class="banner warn" hidden>
-    API anahtari tanimli degil. Anlamsal ve baglamsal katmanlar calismaz;
-    yalnizca literal ve kanal listeleri devrede kalir.
+  <div id="keyWarning" class="banner info" hidden>
+    <b>Anahtarsiz kip</b> — eklenti calisiyor. Kurallardaki capalar ve kaliplar
+    basliklarda eslestiriliyor, kanal listeleri devrede. Hicbir veri disari
+    cikmiyor.
+    <div class="hint" style="margin-top:6px">
+      API anahtari <b>zorunlu degildir</b>. Eklerseniz: yazilmamis kisaltma ve
+      jargonu anlama, tutum okuma (oveni engelle / elestireni gecir) ve
+      kurallari duz cumleden uretme yetenegi kazanir.
+    </div>
   </div>
 
   <!-- ---------------------------------------------------------- -->
@@ -174,8 +180,9 @@
     <h2>API ve maliyet</h2>
 
     <label class="field">
-      <span class="lbl">Gemini API anahtari</span>
-      <span class="hint">Yalnizca bu tarayicida saklanir, hicbir yere gonderilmez.
+      <span class="lbl">Gemini API anahtari <em>(istege bagli)</em></span>
+      <span class="hint">Bos birakabilirsiniz — eklenti anahtarsiz da calisir.
+        Girerseniz yalnizca bu tarayicida saklanir, baska hicbir yere gonderilmez.
         <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Anahtar alin</a>.</span>
       <div class="inline">
         <input type="password" id="apiKey" autocomplete="off" placeholder="AIza...">

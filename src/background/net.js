@@ -104,7 +104,18 @@ export async function callGemini(
   settings,
   { retries = 3, timeoutMs = DEFAULT_TIMEOUT_MS } = {},
 ) {
-  if (!settings.apiKey) throw new ApiError('API anahtari tanimli degil', 0, false);
+  // Buraya anahtarsiz gelinmemesi gerekir: karar hatti anahtar yokken
+  // tamamen yerel calisir ve API'ye hic ugramaz. Yine de bir yol acik
+  // kalirsa mesaj "hata" gibi degil, YAPILACAK IS gibi okunmali —
+  // anahtarsiz kip gecerli bir kullanim bicimidir, ariza degil.
+  if (!settings.apiKey) {
+    throw new ApiError(
+      'Bu katman icin API anahtari gerekiyor. Anahtarsiz kip yerel kurallarla ' +
+        'calisir; anlamsal ve baglamsal katmanlari acmak icin ayarlardan anahtar girin.',
+      0,
+      false,
+    );
+  }
   bucket.setRate(settings.maxRequestsPerMinute || 60);
 
   // Toplu gomude her metin ayri istek sayilir; sinirlayiciya gercek maliyeti

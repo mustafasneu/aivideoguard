@@ -36,7 +36,21 @@ export const DEFAULT_RULES = [
     ],
     "minConfidence": 0.55,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "league of legends",
+      "lol gameplay",
+      "lol montaj",
+      "summoner's rift",
+      "teamfight tactics",
+      "tft gameplay",
+      "lck highlights",
+      "lec highlights",
+      "lcs highlights",
+      "turkiye sampiyonluk ligi",
+      "lol highlights",
+      "urf mode lol",
+      "aram highlights"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -65,7 +79,18 @@ export const DEFAULT_RULES = [
     ],
     "minConfidence": 0.55,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "valorant",
+      "valorant gameplay",
+      "valorant montaj",
+      "valorant highlights",
+      "valorant clips",
+      "valorant clutch",
+      "valorant lineup",
+      "radiant gameplay",
+      "vct highlights",
+      "valorant crosshair"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -91,7 +116,22 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.8,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "porno",
+      "pornography",
+      "nsfw video",
+      "sex tape",
+      "naked girls",
+      "ciplak kadinlar",
+      "yetiskin film",
+      "adult movie",
+      "erotic scene",
+      "erotik film izle",
+      "hentai gameplay",
+      "porno izle",
+      "sex scene",
+      "full nude"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -117,8 +157,16 @@ export const DEFAULT_RULES = [
     "minConfidence": 0.65,
     "origin": "llm",
     "patterns": [
-      "clickbait thumbnail",
-      "tahrik edici baslik"
+      "frikik verdi",
+      "bikini try on haul",
+      "try on haul nude",
+      "bacak sov",
+      "soyunma videosu",
+      "gogus dekoltesi",
+      "unseen wardrobe malfunction",
+      "oops moment hot",
+      "frikik izle",
+      "gece kulubunde yakalandi"
     ],
     "stancePolicy": {
       "destekleyici": "block",
@@ -145,7 +193,17 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.8,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "kavga ani",
+      "fena dayak",
+      "gore video",
+      "brutal fight",
+      "street fight knockout",
+      "sokak kavgasi dehset",
+      "darp ani",
+      "behead video",
+      "execution video"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -171,7 +229,17 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.8,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "magazin haberleri",
+      "unlu oyuncunun son hali",
+      "sevgilisinden ayrildi mi",
+      "sevgilisiyle yakalandi",
+      "magazin dunyasi",
+      "celebrity gossip",
+      "hollywood drama",
+      "bosanma iddiasi",
+      "ask iddialarina cevap"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -196,7 +264,14 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.65,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "kufurlu montaj",
+      "kufurlu komediler",
+      "kufurlu tepki",
+      "kufurlu yayinci komik",
+      "funny swearing compilation",
+      "kufurlu troll"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -223,7 +298,17 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.8,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "dine hakaret",
+      "kuran yakma",
+      "camide saygisizlik",
+      "allah'a kufur",
+      "peygambere hakaret",
+      "insulting islam",
+      "insulting christianity",
+      "quran burning",
+      "kutsal degerlere hakaret"
+    ],
     "stancePolicy": {
       "destekleyici": "allow",
       "elestirel": "block",
@@ -249,8 +334,15 @@ export const DEFAULT_RULES = [
     "minConfidence": 0.65,
     "origin": "llm",
     "patterns": [
-      "asparagas haber",
-      "sansasyonel baslik"
+      "sok gelisme",
+      "flas haber",
+      "inanamayacaksiniz",
+      "dunyanin sonu geldi",
+      "kimse bunu beklemiyordu",
+      "gercek ortaya cikti",
+      "shocking truth revealed",
+      "you won't believe what happened",
+      "secret exposed"
     ],
     "stancePolicy": {
       "destekleyici": "block",
@@ -276,7 +368,16 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.65,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "ateizmin ustunlugu",
+      "why christianity is true",
+      "jesus is the only way",
+      "hristiyanlik gercegi",
+      "ateist olmanin faydalari",
+      "join christianity",
+      "incil gercegi",
+      "misyonerlik sohbetleri"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -301,7 +402,17 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.65,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "mide bulandiran yemekler",
+      "gross food challenge",
+      "eating live worms",
+      "canli bocek yeme",
+      "igrenc yemek tarifleri",
+      "disgusting food challenge",
+      "eating raw brain",
+      "mide bulandiran tarifler",
+      "igrenc sokak lezzetleri"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -326,7 +437,15 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.65,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "cringe tiktok derlemesi",
+      "igrenc tiktok videolari",
+      "gross tiktok compilation",
+      "mide bulandiran tiktok",
+      "disgusting tiktok compilation",
+      "cringe tiktok compilation",
+      "utanc verici tiktoklar"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -354,7 +473,17 @@ export const DEFAULT_RULES = [
     ],
     "minConfidence": 0.55,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "pkk gerillalari",
+      "pkk marsi",
+      "pyd savunmasi",
+      "ypg gerilla",
+      "pkk propaganda",
+      "free pkk",
+      "pkk belgeseli",
+      "gerilla tv",
+      "ypg propaganda"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",
@@ -379,7 +508,17 @@ export const DEFAULT_RULES = [
     "literals": [],
     "minConfidence": 0.8,
     "origin": "llm",
-    "patterns": [],
+    "patterns": [
+      "try not to gag",
+      "popping huge pimple",
+      "sivilce patlatma dehset",
+      "parasite removal",
+      "igrenc yaratiklar",
+      "gross cyst extraction",
+      "try not to feel uncomfortable",
+      "mide bulandiran anlar",
+      "disturbing videos"
+    ],
     "stancePolicy": {
       "destekleyici": "block",
       "elestirel": "allow",

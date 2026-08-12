@@ -26,7 +26,9 @@
  */
 
 import { VERDICT, LAYER } from '../shared/config.js';
-import { videoText, channelMatches, literalMatches, parseList, normalize } from '../shared/text.js';
+import {
+  videoText, channelMatches, literalMatches, wordMatches, parseList, normalize,
+} from '../shared/text.js';
 import { bestMatch, dot, center } from '../shared/vector.js';
 import { configHash, embedHash, channelBoost } from '../shared/scoring.js';
 // NOT: ACTION ve VERDICT ayni dize degerlerini kullanir ('block'/'allow'),
@@ -97,6 +99,31 @@ export async function evaluate(item, settings, opts = {}) {
     await putVerdict(item.videoId, hash, VERDICT.BLOCK, 1, LAYER.CHANNEL_BLOCK, `kanal: ${blockHit}`);
     await bumpStats({ blocked: 1 });
     return result(VERDICT.BLOCK, LAYER.CHANNEL_BLOCK, { matched: blockHit });
+  }
+
+  /* --- ANAHTARSIZ MOD ------------------------------------------------
+   *
+   * Toplu yoldaki ile AYNI davranis. Burada da olmasi sart: kalibrasyon
+   * paneli bu yolu kullaniyor ve anahtarsiz kullanicida "API anahtari
+   * tanimli degil" hatasi veriyordu — calisan bir kipte hata mesaji
+   * gostermek, kullaniciya eklentinin bozuk oldugunu soylemektir.
+   */
+  if (!settings.apiKey) {
+    const hit = offlineDecision(text, rules, (t, term) => Boolean(wordMatches(t, [term])));
+    if (hit) {
+      await putVerdict(
+        item.videoId, hash, VERDICT.BLOCK, 1, LAYER.LITERAL,
+        `anahtarsiz mod — eslesen: ${hit.text}`, hit.rule.label,
+      );
+      await recordChannelOutcome(channelKey, true);
+      await bumpStats({ blocked: 1 });
+      return result(VERDICT.BLOCK, LAYER.LITERAL, {
+        matched: hit.text, rule: hit.rule.label, ruleId: hit.ruleId, offline: true,
+      });
+    }
+    await putVerdict(item.videoId, hash, VERDICT.ALLOW, null, LAYER.LITERAL);
+    await bumpStats({ allowed: 1 });
+    return result(VERDICT.ALLOW, LAYER.LITERAL, { offline: true });
   }
 
   /* --- 2. Aday eleme ---------------------------------------------- */
@@ -315,7 +342,7 @@ async function prejudge(item, settings, rules) {
    * gecikmedir. Tutum-duyarli olcutlerde bu yol KAPALIDIR — orada karar
    * ancak tutum okunarak verilebilir.
    */
-  const patternEntry = patternDecision(text, rules, (t, pat) => Boolean(literalMatches(t, [pat])));
+  const patternEntry = patternDecision(text, rules, (t, pat) => Boolean(wordMatches(t, [pat])));
   if (patternEntry) {
     await _putVerdict(
       item.videoId, hash, VERDICT.BLOCK, 1, LAYER.LITERAL,
@@ -341,7 +368,7 @@ async function prejudge(item, settings, rules) {
    * yine gecer — kullanicinin cekirdek kurali modelsiz de korunur.
    */
   if (!settings.apiKey) {
-    const hit = offlineDecision(text, rules, (t, term) => Boolean(literalMatches(t, [term])));
+    const hit = offlineDecision(text, rules, (t, term) => Boolean(wordMatches(t, [term])));
     if (hit) {
       await _putVerdict(
         item.videoId, hash, VERDICT.BLOCK, 1, LAYER.LITERAL,

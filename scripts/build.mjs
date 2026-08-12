@@ -64,7 +64,18 @@ function manifest(target) {
       ...base,
       background: { scripts: ['background/index.js'], type: 'module' },
       browser_specific_settings: {
-        gecko: { id: 'aivideoguard@mustafaseker.dev', strict_min_version: '115.0' },
+        gecko: {
+          id: 'aivideoguard@mustafaseker.dev',
+          strict_min_version: '115.0',
+          // Firefox bu alani ileride ZORUNLU kilacak; simdiden bildirmek
+          // hem magaza reddini onler hem de dogru olani yapar.
+          //
+          // `websiteContent`: degerlendirme icin video basligi ve kanal adi
+          // Google Gemini'ye gonderilir. Baska hicbir sey gonderilmez —
+          // izleme gecmisi, hesap ve kimlik hicbir zaman aktarilmaz.
+          // Kullanici API anahtari girmezse HICBIR veri disari cikmaz.
+          data_collection_permissions: { required: ['websiteContent'] },
+        },
       },
     };
     if (target === 'firefox-test') {
