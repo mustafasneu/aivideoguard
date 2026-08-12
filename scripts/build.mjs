@@ -31,7 +31,7 @@ const TARGETS = only
     ? ['chrome-test', 'firefox-test']
     : ['firefox', 'chrome', 'opera'];
 
-const VERSION = '1.0.0';
+const VERSION = '2.0.0';
 
 function manifest(target) {
   const base = {
