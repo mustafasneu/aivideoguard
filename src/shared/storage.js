@@ -124,9 +124,21 @@ export async function getContentSettings() {
   return { onError: s.onError, debug: s.debug, enabled: s.enabled };
 }
 
-/** Yalnizca ayar anahtarindaki degisimleri bildirir; degeri TASIMAZ. */
+/**
+ * Ayar ya da KURAL degisimini bildirir; degeri TASIMAZ.
+ *
+ * KURAL ANAHTARI DA DINLENMEK ZORUNDA: kurallar `settings:v1` icinden cikip
+ * ayri ve senkron bir anahtara tasindiginda burasi guncellenmemisti. Sonuc
+ * ekran testinde gorundu — kullanici yeni kural ekliyor, kaydediliyor, ama
+ * acik YouTube sekmesi bunu hic duymuyor ve kartlar oldugu gibi kaliyordu.
+ * Kullanici acisindan bu "kural ekledim, hicbir sey olmadi" demektir.
+ *
+ * `sync` alani da dinlenir: kural baska bir makinede degistiginde bu
+ * makinedeki acik sekmeler de kendini yeniler.
+ */
 export function onSettingsChanged(cb) {
   browser.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[SETTINGS_KEY]) cb();
+    if (area === 'local' && (changes[SETTINGS_KEY] || changes[RULES_KEY])) return cb();
+    if (area === 'sync' && changes[RULES_KEY]) cb();
   });
 }

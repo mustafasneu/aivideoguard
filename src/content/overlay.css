@@ -13,15 +13,27 @@
   pointer-events: none;
 }
 
+/* Kart gorunmez olmasi YETMEZ: konak oge hala isabet testine girer, yani
+   yanlislikla tiklanip videoya gidilebilir ve YouTube'un ust duzey
+   dinleyicileri fare olayini yakalayip satir-ici onizleme baslatabilir.
+   Bu yuzden engellenen yuzey butunuyle fare disi birakilir. */
 [data-aivg='blocked'] {
   position: relative;
   min-height: 84px;
   border-radius: 12px;
   overflow: hidden;
+  pointer-events: none !important;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-[data-aivg='blocked'] > * {
+/* Tek bir kalitim zincirine guvenilmez: alt agactaki bir oge kendi uzerinde
+   visibility ya da pointer-events yeniden tanimlarsa TEK BASINA tiklanabilir
+   hale gelir ve konak ogedeki !important bunu engellemez. Kural bu yuzden
+   dogrudan cocuklara degil, tum alt agaca uygulanir. */
+[data-aivg='blocked'] * {
   visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 [data-aivg='blocked']::after {
@@ -46,6 +58,9 @@
   text-align: center;
   white-space: pre-wrap;
   opacity: 0.75;
+  /* Etiket konak ogenin bir parcasi; konak zaten fare disi ama sozde oge
+     kendi degerini tasisin ki kural sirasi degisirse acikta kalmasin. */
+  pointer-events: none;
 }
 
 /* Hata politikasi geregi gizlenenler farkli gorunur — kullanici filtrenin

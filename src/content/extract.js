@@ -55,18 +55,44 @@ export function pickThumbnail(card) {
   return '';
 }
 
-export function extractVideoId(card) {
-  const links = card.querySelectorAll('a[href]');
-  for (const a of links) {
+/** Bir dugumun altindaki TUM farkli video kimlikleri. */
+function videoIdsIn(card) {
+  const ids = new Set();
+  for (const a of card.querySelectorAll('a[href]')) {
     const href = a.getAttribute('href') || '';
     let m = href.match(/[?&]v=([\w-]{11})/);
-    if (m) return m[1];
+    if (m) {
+      ids.add(m[1]);
+      continue;
+    }
     m = href.match(/\/shorts\/([\w-]{11})/);
-    if (m) return `s:${m[1]}`;
+    if (m) {
+      ids.add(`s:${m[1]}`);
+      continue;
+    }
     m = href.match(/youtu\.be\/([\w-]{11})/);
-    if (m) return m[1];
+    if (m) ids.add(m[1]);
   }
-  return null;
+  return ids;
+}
+
+/**
+ * Kartin videosu. Dugum birden fazla video BARINDIRIYORSA kart degil
+ * KAPSAYICIDIR ve null doner.
+ *
+ * NEDEN: ana sayfada Shorts rafinin tamami tek bir `ytd-rich-item-renderer`
+ * icinde durur. Ilk baglantiyi alip "bu kartin videosu" saymak, rafi tek bir
+ * videoymus gibi degerlendirir; karar "engelle" cikinca RAFIN TAMAMI
+ * gizlenir. Kullanicinin gordugu sey "Shorts komple engellendi" olur, oysa
+ * yalnizca bir tanesi olcute giriyordu.
+ *
+ * Kapsayici atlanir; icindeki gercek kartlar (`ytm-shorts-lockup-view-model`)
+ * zaten secicide oldugu icin tek tek degerlendirilir.
+ */
+export function extractVideoId(card) {
+  const ids = videoIdsIn(card);
+  if (ids.size !== 1) return null;
+  return [...ids][0];
 }
 
 export function detectSurface() {

@@ -23,11 +23,22 @@ let queueTimer = null;
 /* Kart durumu                                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * `inert` DOM duzeyinde keser: odak, tiklama ve fare olaylari o alt agaca hic
+ * ulasmaz, dolayisiyla YouTube'un satir-ici onizleme dinleyicisi de tetiklenmez.
+ * CSS'e tek basina guvenilmez — YouTube alt agacta pointer-events ya da
+ * visibility'yi kendi stilleriyle geri acabilir.
+ */
+const INERT_SUPPORTED = typeof HTMLElement !== 'undefined' && 'inert' in HTMLElement.prototype;
+
 function clearCard(card) {
   card.removeAttribute('data-aivg');
   card.removeAttribute('data-aivg-label');
   card.removeAttribute('data-aivg-layer');
   card.removeAttribute('data-aivg-decided');
+  // Kosulsuz kaldirilir: destek durumu degisse bile gecen kart etkilesimsiz
+  // kalmamali, yoksa kullanici izleyebilecegi videoya tiklayamaz.
+  card.removeAttribute('inert');
 }
 
 function markPending(card) {
@@ -48,6 +59,7 @@ function markBlocked(card, res) {
   card.setAttribute('data-aivg', 'blocked');
   card.setAttribute('data-aivg-label', label);
   card.setAttribute('data-aivg-layer', res.layer || '');
+  if (INERT_SUPPORTED) card.setAttribute('inert', '');
 }
 
 /* ------------------------------------------------------------------ */
@@ -242,7 +254,19 @@ async function init() {
 // Ayarlar degistiginde tum kararlar gecersizdir: isaretleri temizle, yeniden tara
 onSettingsChanged(async () => {
   settings = await getContentSettings();
-  for (const card of document.querySelectorAll('[data-aivg], [data-aivg-decided]')) {
+
+  // TUM kartlarin durumu silinir — yalnizca isaretli olanlarin degil.
+  //
+  // Onceki surum `[data-aivg]` tasiyan kartlari temizliyordu. Ama GECEN bir
+  // kartta hicbir isaret kalmaz (isaretler yalnizca engellenende ve hata
+  // ayiklama acikken durur). Dolayisiyla o kartlarin durumu WeakMap'te
+  // kaliyor, `processCard` "zaten islendi" deyip erken donuyor ve kart yeni
+  // kurala gore HIC yeniden degerlendirilmiyordu.
+  //
+  // Ekran testinde gorundu: kullanici "galatasaray" kurali ekledi, kural
+  // depoya yazildi, ama akistaki Galatasaray kartlari oldugu gibi kaldi.
+  // Kullanici acisindan bu "kural ekledim, hicbir sey olmadi" demektir.
+  for (const card of document.querySelectorAll(CARD_SELECTOR)) {
     clearCard(card);
     STATE.delete(card);
   }

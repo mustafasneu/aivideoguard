@@ -108,6 +108,25 @@ export const VIDEOS = [
     why: 'Ingilizce, hicbir olcute girmiyor — iki dilli calistigini gosterir',
   },
 
+  /* --- olcut disi spor: canli kural testinde YAN ETKI denetcisi ---
+     Kullanici rastgele bir kelime icin kural eklerken bu iki kart GORUNUR
+     kalmali. Ayni alandan (spor) olmalari kasitli: yeni kuralin komsu
+     basliklara tasip tasmadigini ancak yakin bir konu gosterir. */
+  {
+    id: 'gsgsgsgsgs1',
+    title: 'Galatasaray derbi öncesi son antrenman',
+    channel: 'Spor Ajansı',
+    expect: 'allow',
+    why: 'hicbir olcute girmiyor — eklenen kural buna dokunmamali',
+  },
+  {
+    id: 'gsgsgsgsgs2',
+    title: 'Galatasaray taraftarından tribün koreografisi',
+    channel: 'Tribün TV',
+    expect: 'allow',
+    why: 'hicbir olcute girmiyor — eklenen kural buna dokunmamali',
+  },
+
   /* --- kanal listeleri --- */
   {
     id: 'eeeeeeeeee1',
@@ -149,7 +168,51 @@ function card(v) {
   </ytd-rich-item-renderer>`;
 }
 
-export function fixtureHtml(videos = VIDEOS) {
+/**
+ * Shorts rafi — ana sayfada gercekte oldugu gibi TEK bir
+ * `ytd-rich-item-renderer` icinde uc ayri Short.
+ *
+ * Kod bu rafi tek video sanip ilk Short'un kararini butun rafa uyguluyordu.
+ * Fikstürde bulunmasi sart: yoksa hata testlerde hic gorunmez.
+ */
+function shortsShelf() {
+  const shorts = [
+    { id: 'ssssssssss1', title: 'LCK highlights kısa kesit' },
+    { id: 'ssssssssss2', title: 'Kedi yavrusu ilk adımları' },
+    { id: 'ssssssssss3', title: 'Ekmek nasıl yoğrulur' },
+  ];
+  return `
+  <ytd-rich-item-renderer id="shorts-raf">
+    <div id="content">
+      ${shorts
+        .map(
+          (s) => `
+        <ytm-shorts-lockup-view-model>
+          <a href="/shorts/${s.id}">
+            <div class="shortsLockupViewModelHostThumbnail">
+              <img src="https://i.ytimg.com/vi/${s.id}/hqdefault.jpg" alt="">
+            </div>
+          </a>
+          <span class="shortsLockupViewModelHostMetadataTitle">${s.title}</span>
+        </ytm-shorts-lockup-view-model>`,
+        )
+        .join('')}
+    </div>
+  </ytd-rich-item-renderer>`;
+}
+
+/**
+ * @param videos    sabit kart listesi
+ * @param ekKartlar kosum aninda uretilen kartlar ({ id, title, channel })
+ *
+ * EK KART NEDEN GEREKLI: canli kural testi her kosumda havuzdan RASTGELE bir
+ * kelime seciyor. O kelimeyi iceren kart burada sabit duramaz — sabit dursa
+ * havuz tek kelimeye kilitlenir ve test yine tek kelimeye ozel bir seyin
+ * calistigini olcerdi. Ek kartlar cagirana birakilir; sabit liste degismez,
+ * bu yuzden demo.mjs / firefox.mjs / proxy.mjs cagrilari etkilenmez.
+ */
+export function fixtureHtml(videos = VIDEOS, ekKartlar = []) {
+  const hepsi = [...videos, ...ekKartlar];
   return `<!DOCTYPE html>
 <html lang="tr"><head><meta charset="utf-8"><title>YouTube</title>
 <style>
@@ -168,7 +231,7 @@ export function fixtureHtml(videos = VIDEOS) {
 </style></head>
 <body>
   <h1>Ana sayfa — önerilenler</h1>
-  <div id="grid">${videos.map(card).join('')}</div>
+  <div id="grid">${hepsi.map(card).join('')}${shortsShelf()}</div>
 </body></html>`;
 }
 
